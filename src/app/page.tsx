@@ -1,31 +1,103 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { GraduationCap } from 'lucide-react';
+'use client';
 
-export default function Home() {
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAppState, setCurrentUser, type User } from '@/lib/store';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+
+export default function HomePage() {
+  const state = useAppState();
+  const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+  const [forceNewProfile, setForceNewProfile] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const id = state.currentUserId;
+    if (!id) return;
+    const user = state.users[id];
+    if (!user) return;
+    router.replace(user.role === 'tutor' ? '/tutor' : '/student');
+  }, [mounted, state.currentUserId, state.users, router]);
+
+  if (!mounted) return null;
+  if (state.currentUserId && state.users[state.currentUserId]) return null;
+
+  const users = Object.values(state.users);
+  const showRoleSelect = users.length === 0 || forceNewProfile;
+
+  if (showRoleSelect) return <RoleSelect />;
+
   return (
-    <main className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-6 dark:from-slate-950 dark:to-slate-900">
-      <Card className="w-full max-w-md shadow-lg">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <GraduationCap className="h-6 w-6 text-primary" aria-hidden />
-          </div>
-          <CardTitle className="text-2xl font-semibold tracking-tight">
-            Tutor Booking
-          </CardTitle>
-          <CardDescription>Coming soon</CardDescription>
-        </CardHeader>
-        <CardContent className="text-center text-sm text-muted-foreground">
-          A lightweight prototype for connecting tutors and students.
-          <br />
-          This single-browser build stores everything in <code>localStorage</code>.
-        </CardContent>
-      </Card>
+    <ProfilePicker users={users} onNewProfile={() => setForceNewProfile(true)} />
+  );
+}
+
+function RoleSelect() {
+  const router = useRouter();
+  return (
+    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-8 p-6">
+      <h1 className="text-center text-2xl font-semibold">
+        Are you a student or tutor?
+      </h1>
+      <div className="flex w-full flex-col gap-4">
+        <Button
+          size="lg"
+          className="h-20 text-lg"
+          onClick={() => router.push('/onboarding/name?role=student')}
+        >
+          Student
+        </Button>
+        <Button
+          size="lg"
+          variant="secondary"
+          className="h-20 text-lg"
+          onClick={() => router.push('/onboarding/name?role=tutor')}
+        >
+          Tutor
+        </Button>
+      </div>
+    </main>
+  );
+}
+
+function ProfilePicker({
+  users,
+  onNewProfile,
+}: {
+  users: User[];
+  onNewProfile: () => void;
+}) {
+  const sorted = [...users].sort((a, b) =>
+    a.createdAt < b.createdAt ? -1 : 1
+  );
+  return (
+    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 p-6">
+      <h1 className="mt-12 text-2xl font-semibold">Choose a profile</h1>
+      <ul className="flex flex-col gap-3">
+        {sorted.map((u) => (
+          <li key={u.id}>
+            <button
+              type="button"
+              onClick={() => setCurrentUser(u.id)}
+              className="flex w-full items-center justify-between rounded-md border bg-card p-4 text-left shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="font-medium">{u.name}</span>
+              <Badge variant={u.role === 'tutor' ? 'default' : 'secondary'}>
+                {u.role}
+              </Badge>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <Button variant="outline" onClick={onNewProfile}>
+        + New profile
+      </Button>
     </main>
   );
 }
