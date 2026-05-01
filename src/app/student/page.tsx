@@ -187,21 +187,23 @@ export default function StudentBrowsePage() {
                 <span className="mb-1 block text-sm text-muted-foreground">
                   Tutor
                 </span>
-                <Select
-                  value={selectedTutorId ?? undefined}
-                  onValueChange={setSelectedTutorId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a tutor" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tutors.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+ <Select
+  value={selectedTutorId ?? undefined}
+  onValueChange={setSelectedTutorId}
+>
+  <SelectTrigger className="w-full">
+    <SelectValue placeholder="Choose a tutor">
+      {selectedTutor?.name ?? 'Choose a tutor'}
+    </SelectValue>
+  </SelectTrigger>
+  <SelectContent>
+    {tutors.map((t) => (
+      <SelectItem key={t.id} value={t.id}>
+        {t.name}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
               </label>
             )}
           </div>
