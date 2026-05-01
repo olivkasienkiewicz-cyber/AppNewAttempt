@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 import {
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/select';
 
 import { BookingConfirmModal } from '@/components/student/booking-confirm-modal';
+import { NotificationBell } from '@/components/notification-bell';
 
 // ---------- helpers ----------
 
@@ -151,15 +152,7 @@ export default function StudentBrowsePage() {
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Browse slots</h1>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Notifications"
-            onClick={() => router.push('/notifications')}
-            className="h-11 w-11"
-          >
-            <Bell className="h-5 w-5" />
-          </Button>
+          <NotificationBell />
           <Button
             variant="ghost"
             onClick={handleSwitchAccount}
@@ -187,23 +180,23 @@ export default function StudentBrowsePage() {
                 <span className="mb-1 block text-sm text-muted-foreground">
                   Tutor
                 </span>
- <Select
-  value={selectedTutorId ?? undefined}
-  onValueChange={setSelectedTutorId}
->
-  <SelectTrigger className="w-full">
-    <SelectValue placeholder="Choose a tutor">
-      {selectedTutor?.name ?? 'Choose a tutor'}
-    </SelectValue>
-  </SelectTrigger>
-  <SelectContent>
-    {tutors.map((t) => (
-      <SelectItem key={t.id} value={t.id}>
-        {t.name}
-      </SelectItem>
-    ))}
-  </SelectContent>
-</Select>
+                <Select
+                  value={selectedTutorId ?? undefined}
+                  onValueChange={setSelectedTutorId}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a tutor">
+                      {selectedTutor?.name ?? 'Choose a tutor'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tutors.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </label>
             )}
           </div>

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, MoreVertical } from 'lucide-react';
+import { MoreVertical } from 'lucide-react';
 import { parse, addMinutes, format } from 'date-fns';
 import { useAppState, setCurrentUser, type Slot } from '@/lib/store';
 import { Button } from '@/components/ui/button';
@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { NotificationBell } from '@/components/notification-bell';
 
 function endTime(startTime: string, durationMinutes: number): string {
   const start = parse(startTime, 'HH:mm', new Date());
@@ -69,13 +70,7 @@ export default function TutorHomePage() {
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold">Hi, {currentUser.name}</h1>
         <div className="flex items-center gap-1">
-          <Link
-            href="/notifications"
-            aria-label="Notifications"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent"
-          >
-            <Bell className="h-5 w-5" />
-          </Link>
+          <NotificationBell />
           <DropdownMenu>
             <DropdownMenuTrigger
               aria-label="Account menu"
