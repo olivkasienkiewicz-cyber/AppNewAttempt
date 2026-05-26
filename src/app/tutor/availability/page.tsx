@@ -5,49 +5,29 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import {
-  addDays,
-  addMonths,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  format,
-  isSameMonth,
-  isSameDay,
-  isBefore,
-  isAfter,
-  startOfToday,
+  addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+  eachDayOfInterval, format, isSameMonth, isSameDay, isBefore, isAfter, startOfToday,
 } from 'date-fns';
 import { toast } from 'sonner';
 import { useAppState, createSlot, deleteSlot, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/brand/page-header';
 
 const DEFAULT_DURATION = 60;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const TIME_OPTIONS: string[] = (() => {
   const out: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    for (let m = 0; m < 60; m += 15) {
-      out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
-    }
+  for (let h = 0; h < 24; h++) for (let m = 0; m < 60; m += 15) {
+    out.push(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
   }
   return out;
 })();
@@ -77,9 +57,7 @@ export default function AvailabilityPage() {
       map.get(s.date)!.push(s);
     }
     for (const arr of map.values()) {
-      arr.sort((a, b) =>
-        a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : 0
-      );
+      arr.sort((a, b) => a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : 0);
     }
     return map;
   }, [state.slots, currentUser]);
@@ -93,39 +71,31 @@ export default function AvailabilityPage() {
     });
   }, [displayMonth]);
 
-  if (!hydrated) {
-    return <AvailabilitySkeleton />;
-  }
+  if (!hydrated) return <AvailabilitySkeleton />;
 
   if (!currentUser) {
     return (
       <div className="p-6">
-        Not signed in. <Link href="/" className="underline">Go to start</Link>.
+        Not signed in. <Link href="/" className="text-foreground underline underline-offset-4">Go to start</Link>.
       </div>
     );
   }
   if (currentUser.role !== 'tutor') {
     return (
       <div className="p-6">
-        This page is for tutors. <Link href="/" className="underline">Go back</Link>.
+        This page is for tutors. <Link href="/" className="text-foreground underline underline-offset-4">Go back</Link>.
       </div>
     );
   }
 
   const canPrev = isAfter(startOfMonth(displayMonth), startOfMonth(today));
   const canNext = isBefore(startOfMonth(displayMonth), startOfMonth(windowEnd));
-
   const inWindow = (d: Date) => !isBefore(d, today) && !isAfter(d, windowEnd);
-
   const selectedKey = selectedDate ? toKey(selectedDate) : null;
   const selectedSlots = selectedKey ? (slotsByDate.get(selectedKey) ?? []) : [];
-
-  // When the selected date is today, disable time options that are already
-  // in the past. HH:MM strings sort lexicographically, so a direct compare works.
   const selectedIsToday = selectedDate ? isSameDay(selectedDate, today) : false;
   const nowHHMM = selectedIsToday ? format(new Date(), 'HH:mm') : null;
-  const isPastTime = (t: string): boolean =>
-    nowHHMM !== null && t <= nowHHMM;
+  const isPastTime = (t: string): boolean => nowHHMM !== null && t <= nowHHMM;
 
   const handleDayClick = (d: Date) => {
     if (!inWindow(d)) return;
@@ -135,71 +105,54 @@ export default function AvailabilityPage() {
 
   const handleAddSlot = () => {
     if (!selectedDate || !newSlotTime) return;
-    // Belt-and-suspenders: validate again at submit time in case the user
-    // selected a then-future time and lingered until it became past.
-    if (isPastTime(newSlotTime)) {
-      toast.error('That time has already passed.');
-      return;
-    }
+    if (isPastTime(newSlotTime)) { toast.error('That time has already passed.'); return; }
     const dateKey = toKey(selectedDate);
     const existing = slotsByDate.get(dateKey) ?? [];
     if (existing.some((s) => s.startTime === newSlotTime)) {
       toast.error('That time already has a slot.');
       return;
     }
-    createSlot({
-      tutorId: currentUser.id,
-      date: dateKey,
-      startTime: newSlotTime,
-      durationMinutes: DEFAULT_DURATION,
-    });
+    createSlot({ tutorId: currentUser.id, date: dateKey, startTime: newSlotTime, durationMinutes: DEFAULT_DURATION });
     setNewSlotTime('');
     toast.success(`Added ${newSlotTime} on ${format(selectedDate, 'd MMM')}`);
   };
 
   const handleDeleteSlot = (slot: Slot) => {
-    if (slot.status === 'booked') {
-      toast.error('Cancel the booking first — feature coming soon');
-      return;
-    }
+    if (slot.status === 'booked') { toast.error('Cancel the booking first — feature coming soon'); return; }
     deleteSlot(slot.id);
   };
 
   return (
-    <div className="mx-auto max-w-2xl p-4">
-      <header className="mb-4 flex items-center gap-2">
+    <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+      <PageHeader>
         <Button variant="ghost" size="sm" onClick={() => router.push('/tutor')}>
-          ← Back
+          <ChevronLeft className="h-4 w-4" /> Back
         </Button>
-        <h1 className="text-xl font-semibold">Edit availability</h1>
-      </header>
+      </PageHeader>
 
-      <div className="rounded-lg border p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Previous month"
-            disabled={!canPrev}
-            onClick={() => setDisplayMonth((m) => addMonths(m, -1))}
-          >
+      <div className="mb-8 space-y-1">
+        <p className="eyebrow">Calendar</p>
+        <h1 className="font-display text-4xl text-foreground">Edit availability</h1>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-5 flex items-center justify-between">
+          <Button variant="ghost" size="icon" aria-label="Previous month"
+            disabled={!canPrev} onClick={() => setDisplayMonth((m) => addMonths(m, -1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h2 className="text-sm font-medium">{format(displayMonth, 'MMMM yyyy')}</h2>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Next month"
-            disabled={!canNext}
-            onClick={() => setDisplayMonth((m) => addMonths(m, 1))}
-          >
+          <h2 className="text-sm font-medium tracking-tight">{format(displayMonth, 'MMMM yyyy')}</h2>
+          <Button variant="ghost" size="icon" aria-label="Next month"
+            disabled={!canNext} onClick={() => setDisplayMonth((m) => addMonths(m, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
-        <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+        <div className="mb-1 grid grid-cols-7 gap-1">
           {WEEKDAYS.map((d) => (
-            <div key={d} className="py-1">{d}</div>
+            <div key={d} className="py-1 text-center text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {d}
+            </div>
           ))}
         </div>
         <div className="grid grid-cols-7 gap-1">
@@ -210,29 +163,19 @@ export default function AvailabilityPage() {
             const isToday = isSameDay(d, today);
             const dim = !isSameMonth(d, displayMonth);
             return (
-              <button
-                key={key}
-                type="button"
-                disabled={!enabled}
-                onClick={() => handleDayClick(d)}
-                aria-label={format(d, 'd MMMM yyyy')}
+              <button key={key} type="button" disabled={!enabled} onClick={() => handleDayClick(d)}
+                aria-label={count > 0
+                  ? `${format(d, 'd MMMM yyyy')}, ${count} slot${count === 1 ? '' : 's'}`
+                  : format(d, 'd MMMM yyyy')}
                 className={[
-                  'relative flex h-12 flex-col items-center justify-center rounded-md text-sm',
-                  enabled
-                    ? 'hover:bg-accent cursor-pointer'
-                    : 'cursor-not-allowed text-muted-foreground/40',
+                  'group/day relative flex h-12 flex-col items-center justify-center rounded-md text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  enabled ? 'cursor-pointer hover:bg-accent hover:text-accent-foreground' : 'cursor-not-allowed text-muted-foreground/40',
                   dim ? 'opacity-50' : '',
-                  isToday && enabled ? 'ring-1 ring-primary' : '',
-                ].join(' ')}
-              >
-                <span>{format(d, 'd')}</span>
+                  isToday && enabled ? 'ring-1 ring-foreground' : '',
+                ].join(' ')}>
+                <span className="tabular-nums">{format(d, 'd')}</span>
                 {count > 0 && (
-                  <span
-                    aria-label={`${count} slot${count === 1 ? '' : 's'}`}
-                    className="absolute bottom-1 right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-medium text-primary-foreground"
-                  >
-                    {count}
-                  </span>
+                  <span aria-hidden className="absolute bottom-1.5 h-1.5 w-1.5 rounded-full bg-success" />
                 )}
               </button>
             );
@@ -240,13 +183,10 @@ export default function AvailabilityPage() {
         </div>
       </div>
 
-      <Dialog
-        open={!!selectedDate}
-        onOpenChange={(open) => { if (!open) setSelectedDate(null); }}
-      >
+      <Dialog open={!!selectedDate} onOpenChange={(open) => { if (!open) setSelectedDate(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="font-display text-2xl">
               {selectedDate ? format(selectedDate, 'EEEE, d MMMM') : ''}
             </DialogTitle>
           </DialogHeader>
@@ -255,26 +195,20 @@ export default function AvailabilityPage() {
             {selectedSlots.length === 0 ? (
               <p className="text-sm text-muted-foreground">No slots yet for this day.</p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {selectedSlots.map((slot) => (
-                  <li
-                    key={slot.id}
-                    className="flex items-center justify-between rounded-md border p-2"
-                  >
+                  <li key={slot.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm">{slot.startTime}</span>
+                      <span className="text-sm font-medium tabular-nums">{slot.startTime}</span>
                       {slot.status === 'booked' && (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-800">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-success" />
                           Booked
                         </span>
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`Delete slot at ${slot.startTime}`}
-                      onClick={() => handleDeleteSlot(slot)}
-                    >
+                    <Button variant="ghost" size="icon" aria-label={`Delete slot at ${slot.startTime}`}
+                      onClick={() => handleDeleteSlot(slot)}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </li>
@@ -290,9 +224,7 @@ export default function AvailabilityPage() {
               </SelectTrigger>
               <SelectContent className="max-h-60">
                 {TIME_OPTIONS.map((t) => (
-                  <SelectItem key={t} value={t} disabled={isPastTime(t)}>
-                    {t}
-                  </SelectItem>
+                  <SelectItem key={t} value={t} disabled={isPastTime(t)}>{t}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -302,40 +234,38 @@ export default function AvailabilityPage() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedDate(null)}>
-              Done
-            </Button>
+            <Button variant="outline" onClick={() => setSelectedDate(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 }
 
 function AvailabilitySkeleton() {
   return (
-    <div className="mx-auto max-w-2xl p-4">
-      <header className="mb-4 flex items-center gap-2">
-        <Skeleton className="h-8 w-16" />
-        <Skeleton className="h-6 w-40" />
+    <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+      <header className="mb-8 flex items-center justify-between border-b border-border pb-4">
+        <Skeleton className="h-6 w-28" />
+        <Skeleton className="h-8 w-20" />
       </header>
-      <div className="rounded-lg border p-4">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-10 w-72" />
+      </div>
+      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="mb-5 flex items-center justify-between">
           <Skeleton className="h-8 w-8 rounded-md" />
           <Skeleton className="h-4 w-32" />
           <Skeleton className="h-8 w-8 rounded-md" />
         </div>
         <div className="grid grid-cols-7 gap-1">
-          {Array.from({ length: 7 }).map((_, i) => (
-            <Skeleton key={`h-${i}`} className="h-5" />
-          ))}
+          {Array.from({ length: 7 }).map((_, i) => (<Skeleton key={`h-${i}`} className="h-5" />))}
         </div>
         <div className="mt-1 grid grid-cols-7 gap-1">
-          {Array.from({ length: 35 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 rounded-md" />
-          ))}
+          {Array.from({ length: 35 }).map((_, i) => (<Skeleton key={i} className="h-12 rounded-md" />))}
         </div>
       </div>
-    </div>
+    </main>
   );
 }
