@@ -3,30 +3,35 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppState, setCurrentUser, type User } from '@/lib/store';
+import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function HomePage() {
+  const hydrated = useHasHydrated();
   const state = useAppState();
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const [forceNewProfile, setForceNewProfile] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
+    if (!hydrated) return;
     const id = state.currentUserId;
     if (!id) return;
     const user = state.users[id];
     if (!user) return;
     router.replace(user.role === 'tutor' ? '/tutor' : '/student');
-  }, [mounted, state.currentUserId, state.users, router]);
+  }, [hydrated, state.currentUserId, state.users, router]);
 
-  if (!mounted) return null;
-  if (state.currentUserId && state.users[state.currentUserId]) return null;
+  if (!hydrated) {
+    return <HomeSkeleton />;
+  }
+
+  // If we're signed in we're about to redirect — render a skeleton instead
+  // of flashing the role select on the way out.
+  if (state.currentUserId && state.users[state.currentUserId]) {
+    return <HomeSkeleton />;
+  }
 
   const users = Object.values(state.users);
   const showRoleSelect = users.length === 0 || forceNewProfile;
@@ -98,6 +103,18 @@ function ProfilePicker({
       <Button variant="outline" onClick={onNewProfile}>
         + New profile
       </Button>
+    </main>
+  );
+}
+
+function HomeSkeleton() {
+  return (
+    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-8 p-6">
+      <Skeleton className="h-8 w-64" />
+      <div className="flex w-full flex-col gap-4">
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-20 w-full" />
+      </div>
     </main>
   );
 }
