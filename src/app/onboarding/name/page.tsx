@@ -6,6 +6,7 @@ import { createUser, setCurrentUser, type Role } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { BrandMark } from '@/components/brand/brand-mark';
 
 const MAX_LEN = 40;
 
@@ -28,23 +29,13 @@ function NameEntryForm() {
   const [error, setError] = useState<string | null>(null);
 
   const trimmed = name.trim();
-  const canSubmit =
-    role !== null && trimmed.length > 0 && trimmed.length <= MAX_LEN;
+  const canSubmit = role !== null && trimmed.length > 0 && trimmed.length <= MAX_LEN;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (!role) {
-      router.replace('/');
-      return;
-    }
-    if (trimmed.length === 0) {
-      setError('Please enter your name.');
-      return;
-    }
-    if (trimmed.length > MAX_LEN) {
-      setError(`Name must be ${MAX_LEN} characters or fewer.`);
-      return;
-    }
+    if (!role) { router.replace('/'); return; }
+    if (trimmed.length === 0) { setError('Please enter your name.'); return; }
+    if (trimmed.length > MAX_LEN) { setError(`Name must be ${MAX_LEN} characters or fewer.`); return; }
     const user = createUser(trimmed, role);
     setCurrentUser(user.id);
     router.replace(role === 'tutor' ? '/tutor' : '/student');
@@ -60,35 +51,44 @@ function NameEntryForm() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6">
-      <h1 className="text-2xl font-semibold">What is your name?</h1>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            value={name}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (error) setError(null);
-            }}
-            maxLength={MAX_LEN}
-            autoFocus
-            autoComplete="given-name"
-            placeholder="Your name"
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? 'name-error' : undefined}
-          />
-          {error && (
-            <p id="name-error" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+    <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-10">
+      <header className="mb-10 flex items-center justify-between border-b border-border pb-4">
+        <BrandMark size="md" />
+        <Button variant="ghost" size="sm" onClick={() => router.replace('/')}>Cancel</Button>
+      </header>
+
+      <div className="flex flex-1 flex-col justify-center gap-8">
+        <div className="space-y-2">
+          <p className="eyebrow">
+            {role === 'tutor' ? 'Tutor sign-in' : 'Student sign-in'}
+          </p>
+          <h1 className="font-display text-4xl text-foreground">What should we call you?</h1>
         </div>
-        <Button type="submit" size="lg" disabled={!canSubmit}>
-          Continue
-        </Button>
-      </form>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="name" className="text-sm">Your name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => { setName(e.target.value); if (error) setError(null); }}
+              maxLength={MAX_LEN}
+              autoFocus
+              autoComplete="given-name"
+              placeholder="e.g. Anya Marek"
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'name-error' : undefined}
+              className="h-12 text-base"
+            />
+            {error && (
+              <p id="name-error" className="text-sm text-destructive">{error}</p>
+            )}
+          </div>
+          <Button type="submit" size="lg" disabled={!canSubmit} className="h-12 text-base">
+            Continue
+          </Button>
+        </form>
+      </div>
     </main>
   );
 }
