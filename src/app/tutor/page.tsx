@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Bell, MoreVertical } from 'lucide-react';
 import { parse, addMinutes, format } from 'date-fns';
 import { useAppState, setCurrentUser, type Slot } from '@/lib/store';
+import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function endTime(startTime: string, durationMinutes: number): string {
   const start = parse(startTime, 'HH:mm', new Date());
@@ -24,6 +26,7 @@ function dayHeader(isoDate: string): string {
 }
 
 export default function TutorHomePage() {
+  const hydrated = useHasHydrated();
   const state = useAppState();
   const router = useRouter();
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
@@ -44,6 +47,10 @@ export default function TutorHomePage() {
     }
     return Array.from(map.entries());
   }, [state.slots, currentUser]);
+
+  if (!hydrated) {
+    return <TutorHomeSkeleton />;
+  }
 
   if (!currentUser) {
     return (
@@ -148,6 +155,31 @@ export default function TutorHomePage() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function TutorHomeSkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl p-4">
+      <header className="mb-6 flex items-center justify-between">
+        <Skeleton className="h-6 w-32" />
+        <div className="flex items-center gap-1">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+        </div>
+      </header>
+      <div className="space-y-6">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <section key={i}>
+            <Skeleton className="mb-2 h-4 w-32" />
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full rounded-lg" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+            </div>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
