@@ -1,322 +1,185 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
-import { toast } from 'sonner';
-
-import {
-  bookSlot,
-  setCurrentUser,
-  useAppState,
-  type Slot,
-  type User,
-} from '@/lib/store';
+import { Bell, MoreVertical } from 'lucide-react';
+import { parse, addMinutes, format } from 'date-fns';
+import { useAppState, setCurrentUser, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
-
 import { Button } from '@/components/ui/button';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 
-import { BookingConfirmModal } from '@/components/student/booking-confirm-modal';
-
-// ---------- helpers ----------
-
-function isFutureSlot(slot: Slot, now = new Date()): boolean {
-  const [y, m, d] = slot.date.split('-').map(Number);
-  const [hh, mm] = slot.startTime.split(':').map(Number);
-  const slotStart = new Date(y, m - 1, d, hh, mm);
-  return slotStart.getTime() > now.getTime();
+function endTime(startTime: string, durationMinutes: number): string {
+  const start = parse(startTime, 'HH:mm', new Date());
+  return format(addMinutes(start, durationMinutes), 'HH:mm');
 }
 
-function formatDDMM(dateStr: string): string {
-  const [, m, d] = dateStr.split('-');
-  return `${d}.${m}`;
+function dayHeader(isoDate: string): string {
+  return format(parse(isoDate, 'yyyy-MM-dd', new Date()), 'EEE, d MMM');
 }
 
-function formatWeekday(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    weekday: 'long',
-  });
-}
-
-// ---------- page ----------
-
-export default function StudentBrowsePage() {
+export default function TutorHomePage() {
   const hydrated = useHasHydrated();
   const state = useAppState();
   const router = useRouter();
+  const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
 
-  const tutors = useMemo<User[]>(
-    () =>
-      Object.values(state.users)
-        .filter((u) => u.role === 'tutor')
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [state.users],
-  );
-
-  const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
-  useEffect(() => {
-    if (tutors.length === 0) {
-      setSelectedTutorId(null);
-      return;
-    }
-    if (!selectedTutorId || !tutors.some((t) => t.id === selectedTutorId)) {
-      setSelectedTutorId(tutors[0].id);
-    }
-  }, [tutors, selectedTutorId]);
-
-  const freeSlotsForTutor = useMemo<Slot[]>(() => {
-    if (!selectedTutorId) return [];
-    const now = new Date();
-    return Object.values(state.slots)
-      .filter(
-        (s) =>
-          s.tutorId === selectedTutorId &&
-          s.status === 'free' &&
-          isFutureSlot(s, now),
-      )
+  const groups = useMemo<Array<[string, Slot[]]>>(() => {
+    if (!currentUser) return [];
+    const mine = Object.values(state.slots)
+      .filter((s) => s.tutorId === currentUser.id)
       .sort((a, b) =>
-        a.date === b.date
-          ? a.startTime.localeCompare(b.startTime)
-          : a.date.localeCompare(b.date),
+        a.date !== b.date
+          ? a.date < b.date ? -1 : 1
+          : a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : 0
       );
-  }, [state.slots, selectedTutorId]);
-
-  const daysWithSlots = useMemo<string[]>(() => {
-    const set = new Set<string>();
-    for (const s of freeSlotsForTutor) set.add(s.date);
-    return Array.from(set).sort();
-  }, [freeSlotsForTutor]);
-
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  useEffect(() => {
-    if (daysWithSlots.length === 0) {
-      setSelectedDay(null);
-      return;
+    const map = new Map<string, Slot[]>();
+    for (const s of mine) {
+      if (!map.has(s.date)) map.set(s.date, []);
+      map.get(s.date)!.push(s);
     }
-    if (!selectedDay || !daysWithSlots.includes(selectedDay)) {
-      setSelectedDay(daysWithSlots[0]);
-    }
-  }, [daysWithSlots, selectedDay]);
+    return Array.from(map.entries());
+  }, [state.slots, currentUser]);
 
-  const currentDayIndex = selectedDay ? daysWithSlots.indexOf(selectedDay) : -1;
-  const canGoPrev = currentDayIndex > 0;
-  const canGoNext =
-    currentDayIndex >= 0 && currentDayIndex < daysWithSlots.length - 1;
+  if (!hydrated) {
+    return <TutorHomeSkeleton />;
+  }
 
-  const goPrev = () => {
-    if (canGoPrev) setSelectedDay(daysWithSlots[currentDayIndex - 1]);
-  };
-  const goNext = () => {
-    if (canGoNext) setSelectedDay(daysWithSlots[currentDayIndex + 1]);
-  };
-
-  const slotsOnDay = useMemo<Slot[]>(
-    () =>
-      selectedDay ? freeSlotsForTutor.filter((s) => s.date === selectedDay) : [],
-    [freeSlotsForTutor, selectedDay],
-  );
-
-  const [pendingSlot, setPendingSlot] = useState<Slot | null>(null);
-  const selectedTutor = selectedTutorId ? state.users[selectedTutorId] : undefined;
-
-  const handleConfirm = () => {
-    if (!pendingSlot) return;
-    if (!state.currentUserId) {
-      toast.error('You need to be signed in to book a slot.');
-      setPendingSlot(null);
-      return;
-    }
-    const result = bookSlot(pendingSlot.id, state.currentUserId);
-    if ('error' in result && result.error === 'slot_taken') {
-      toast.error('That slot was just taken');
-    } else {
-      toast.success('Booking confirmed');
-    }
-    setPendingSlot(null);
-  };
+  if (!currentUser) {
+    return (
+      <div className="p-6">
+        Not signed in. <Link href="/" className="underline">Go to start</Link>.
+      </div>
+    );
+  }
+  if (currentUser.role !== 'tutor') {
+    return (
+      <div className="p-6">
+        This page is for tutors. <Link href="/" className="underline">Go back</Link>.
+      </div>
+    );
+  }
 
   const handleSwitchAccount = () => {
     setCurrentUser(null);
     router.push('/');
   };
-
-  if (!hydrated) {
-    return <StudentBrowseSkeleton />;
-  }
-
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6">
+    <div className="mx-auto max-w-2xl p-4">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Browse slots</h1>
+        <h1 className="text-xl font-semibold">Hi, {currentUser.name}</h1>
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
+          <Link
+            href="/notifications"
             aria-label="Notifications"
-            onClick={() => router.push('/notifications')}
-            className="h-11 w-11"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent"
           >
             <Bell className="h-5 w-5" />
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={handleSwitchAccount}
-            className="h-11"
-          >
-            Switch account
-          </Button>
+          </Link>
+          <DropdownMenu>
+            <DropdownMenuTrigger
+              aria-label="Account menu"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent outline-none"
+            >
+              <MoreVertical className="h-5 w-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => router.push('/tutor/availability')}
+                className="cursor-pointer"
+              >
+                Edit availability
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleSwitchAccount}
+                className="cursor-pointer"
+              >
+                Switch account
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </header>
 
-      {tutors.length === 0 ? (
-        <EmptyState>
-          No tutors have joined yet. Switch to a tutor account to publish slots.
-        </EmptyState>
+      {groups.length === 0 ? (
+        <div className="rounded-lg border border-dashed p-8 text-center">
+          <p className="mb-4 text-muted-foreground">
+            You haven&apos;t published any slots yet. Start by editing your availability.
+          </p>
+          <Button onClick={() => router.push('/tutor/availability')}>
+            Edit availability
+          </Button>
+        </div>
       ) : (
-        <>
-          <div className="mb-6">
-            {tutors.length === 1 ? (
-              <p className="text-sm">
-                <span className="text-muted-foreground">Tutor: </span>
-                <span className="font-medium">{tutors[0].name}</span>
-              </p>
-            ) : (
-              <label className="block">
-                <span className="mb-1 block text-sm text-muted-foreground">
-                  Tutor
-                </span>
-                <Select
-                  value={selectedTutorId ?? undefined}
-                  onValueChange={setSelectedTutorId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a tutor">
-                      {selectedTutor?.name ?? 'Choose a tutor'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tutors.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </label>
-            )}
-          </div>
-
-          {selectedDay && (
-            <div className="mb-6 flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Previous day with free slots"
-                disabled={!canGoPrev}
-                onClick={goPrev}
-                className="h-11 w-11"
-              >
-                <ChevronLeft className="h-5 w-5" aria-hidden />
-              </Button>
-              <div className="text-center">
-                <div className="text-2xl font-semibold tabular-nums">
-                  {formatDDMM(selectedDay)}
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {formatWeekday(selectedDay)}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Next day with free slots"
-                disabled={!canGoNext}
-                onClick={goNext}
-                className="h-11 w-11"
-              >
-                <ChevronRight className="h-5 w-5" aria-hidden />
-              </Button>
-            </div>
-          )}
-
-          {selectedDay && slotsOnDay.length === 0 ? (
-            <EmptyState>No free slots on this day.</EmptyState>
-          ) : !selectedDay ? (
-            <EmptyState>No upcoming slots from this tutor.</EmptyState>
-          ) : (
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-              {slotsOnDay.map((slot) => (
-                <button
-                  key={slot.id}
-                  type="button"
-                  onClick={() => setPendingSlot(slot)}
-                  className="flex h-16 items-center justify-center rounded-lg border bg-card text-base font-medium shadow-sm transition hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {slot.startTime}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
+        <div className="space-y-6">
+          {groups.map(([date, slots]) => (
+            <section key={date}>
+              <h2 className="mb-2 text-sm font-medium text-muted-foreground">
+                {dayHeader(date)}
+              </h2>
+              <ul className="space-y-2">
+                {slots.map((slot) => {
+                  const end = endTime(slot.startTime, slot.durationMinutes);
+                  const booker = slot.bookedByStudentId
+                    ? state.users[slot.bookedByStudentId]
+                    : null;
+                  return (
+                    <li
+                      key={slot.id}
+                      className="flex items-center justify-between rounded-lg border p-3"
+                    >
+                      <span className="font-mono text-sm">
+                        {slot.startTime}–{end}
+                      </span>
+                      {slot.status === 'free' ? (
+                        <span className="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700">
+                          Free
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs text-green-800">
+                          Booked by {booker?.name ?? 'student'}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
-
-      <BookingConfirmModal
-        open={pendingSlot !== null}
-        onOpenChange={(open) => {
-          if (!open) setPendingSlot(null);
-        }}
-        tutorName={selectedTutor?.name ?? ''}
-        slot={pendingSlot}
-        onConfirm={handleConfirm}
-      />
-    </main>
-  );
-}
-
-function EmptyState({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-      {children}
     </div>
   );
 }
 
-function StudentBrowseSkeleton() {
+function TutorHomeSkeleton() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-6">
+    <div className="mx-auto max-w-2xl p-4">
       <header className="mb-6 flex items-center justify-between">
         <Skeleton className="h-6 w-32" />
         <div className="flex items-center gap-1">
-          <Skeleton className="h-11 w-11 rounded-md" />
-          <Skeleton className="h-11 w-28 rounded-md" />
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-9 w-9 rounded-md" />
         </div>
       </header>
-      <div className="mb-6">
-        <Skeleton className="mb-1 h-4 w-12" />
-        <Skeleton className="h-10 w-full" />
-      </div>
-      <div className="mb-6 flex items-center justify-between">
-        <Skeleton className="h-11 w-11 rounded-md" />
-        <div className="flex flex-col items-center gap-1">
-          <Skeleton className="h-7 w-20" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-        <Skeleton className="h-11 w-11 rounded-md" />
-      </div>
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-16 rounded-lg" />
+      <div className="space-y-6">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <section key={i}>
+            <Skeleton className="mb-2 h-4 w-32" />
+            <div className="space-y-2">
+              <Skeleton className="h-12 w-full rounded-lg" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+            </div>
+          </section>
         ))}
       </div>
-    </main>
+    </div>
   );
 }
