@@ -21,6 +21,7 @@ import {
 } from 'date-fns';
 import { toast } from 'sonner';
 import { useAppState, createSlot, deleteSlot, type Slot } from '@/lib/store';
+import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -36,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const DEFAULT_DURATION = 60;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -53,6 +55,7 @@ const TIME_OPTIONS: string[] = (() => {
 const toKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
 export default function AvailabilityPage() {
+  const hydrated = useHasHydrated();
   const state = useAppState();
   const router = useRouter();
 
@@ -90,6 +93,10 @@ export default function AvailabilityPage() {
     });
   }, [displayMonth]);
 
+  if (!hydrated) {
+    return <AvailabilitySkeleton />;
+  }
+
   if (!currentUser) {
     return (
       <div className="p-6">
@@ -113,6 +120,13 @@ export default function AvailabilityPage() {
   const selectedKey = selectedDate ? toKey(selectedDate) : null;
   const selectedSlots = selectedKey ? (slotsByDate.get(selectedKey) ?? []) : [];
 
+  // When the selected date is today, disable time options that are already
+  // in the past. HH:MM strings sort lexicographically, so a direct compare works.
+  const selectedIsToday = selectedDate ? isSameDay(selectedDate, today) : false;
+  const nowHHMM = selectedIsToday ? format(new Date(), 'HH:mm') : null;
+  const isPastTime = (t: string): boolean =>
+    nowHHMM !== null && t <= nowHHMM;
+
   const handleDayClick = (d: Date) => {
     if (!inWindow(d)) return;
     setSelectedDate(d);
@@ -121,6 +135,12 @@ export default function AvailabilityPage() {
 
   const handleAddSlot = () => {
     if (!selectedDate || !newSlotTime) return;
+    // Belt-and-suspenders: validate again at submit time in case the user
+    // selected a then-future time and lingered until it became past.
+    if (isPastTime(newSlotTime)) {
+      toast.error('That time has already passed.');
+      return;
+    }
     const dateKey = toKey(selectedDate);
     const existing = slotsByDate.get(dateKey) ?? [];
     if (existing.some((s) => s.startTime === newSlotTime)) {
@@ -270,7 +290,9 @@ export default function AvailabilityPage() {
               </SelectTrigger>
               <SelectContent className="max-h-60">
                 {TIME_OPTIONS.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
+                  <SelectItem key={t} value={t} disabled={isPastTime(t)}>
+                    {t}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -286,6 +308,34 @@ export default function AvailabilityPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function AvailabilitySkeleton() {
+  return (
+    <div className="mx-auto max-w-2xl p-4">
+      <header className="mb-4 flex items-center gap-2">
+        <Skeleton className="h-8 w-16" />
+        <Skeleton className="h-6 w-40" />
+      </header>
+      <div className="rounded-lg border p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <Skeleton className="h-8 w-8 rounded-md" />
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-8 w-8 rounded-md" />
+        </div>
+        <div className="grid grid-cols-7 gap-1">
+          {Array.from({ length: 7 }).map((_, i) => (
+            <Skeleton key={`h-${i}`} className="h-5" />
+          ))}
+        </div>
+        <div className="mt-1 grid grid-cols-7 gap-1">
+          {Array.from({ length: 35 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 rounded-md" />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
