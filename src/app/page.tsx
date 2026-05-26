@@ -7,6 +7,7 @@ import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BrandMark } from '@/components/brand/brand-mark';
 
 export default function HomePage() {
   const hydrated = useHasHydrated();
@@ -23,84 +24,75 @@ export default function HomePage() {
     router.replace(user.role === 'tutor' ? '/tutor' : '/student');
   }, [hydrated, state.currentUserId, state.users, router]);
 
-  if (!hydrated) {
-    return <HomeSkeleton />;
-  }
-
-  // If we're signed in we're about to redirect — render a skeleton instead
-  // of flashing the role select on the way out.
-  if (state.currentUserId && state.users[state.currentUserId]) {
-    return <HomeSkeleton />;
-  }
+  if (!hydrated) return <HomeSkeleton />;
+  if (state.currentUserId && state.users[state.currentUserId]) return <HomeSkeleton />;
 
   const users = Object.values(state.users);
   const showRoleSelect = users.length === 0 || forceNewProfile;
 
   if (showRoleSelect) return <RoleSelect />;
-
-  return (
-    <ProfilePicker users={users} onNewProfile={() => setForceNewProfile(true)} />
-  );
+  return <ProfilePicker users={users} onNewProfile={() => setForceNewProfile(true)} />;
 }
 
 function RoleSelect() {
   const router = useRouter();
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-8 p-6">
-      <h1 className="text-center text-2xl font-semibold">
-        Are you a student or tutor?
-      </h1>
-      <div className="flex w-full flex-col gap-4">
-        <Button
-          size="lg"
-          className="h-20 text-lg"
-          onClick={() => router.push('/onboarding/name?role=student')}
-        >
-          Student
-        </Button>
-        <Button
-          size="lg"
-          variant="secondary"
-          className="h-20 text-lg"
-          onClick={() => router.push('/onboarding/name?role=tutor')}
-        >
-          Tutor
-        </Button>
+    <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-10">
+      <div className="mb-16 flex justify-center">
+        <BrandMark size="md" />
+      </div>
+      <div className="flex flex-1 flex-col justify-center gap-10">
+        <div className="space-y-3 text-center">
+          <p className="eyebrow">Welcome</p>
+          <h1 className="font-display text-5xl text-foreground">
+            How would you like to begin?
+          </h1>
+          <p className="mx-auto max-w-xs text-sm text-muted-foreground">
+            Studilly works for both sides of the table.
+            Pick the one that brought you here.
+          </p>
+        </div>
+        <div className="flex w-full flex-col gap-3">
+          <Button size="lg" className="h-14 text-base"
+            onClick={() => router.push('/onboarding/name?role=student')}>
+            I&apos;m a student
+          </Button>
+          <Button size="lg" variant="secondary" className="h-14 text-base"
+            onClick={() => router.push('/onboarding/name?role=tutor')}>
+            I&apos;m a tutor
+          </Button>
+        </div>
       </div>
     </main>
   );
 }
 
-function ProfilePicker({
-  users,
-  onNewProfile,
-}: {
-  users: User[];
-  onNewProfile: () => void;
-}) {
-  const sorted = [...users].sort((a, b) =>
-    a.createdAt < b.createdAt ? -1 : 1
-  );
+function ProfilePicker({ users, onNewProfile }: { users: User[]; onNewProfile: () => void }) {
+  const sorted = [...users].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 p-6">
-      <h1 className="mt-12 text-2xl font-semibold">Choose a profile</h1>
-      <ul className="flex flex-col gap-3">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-8 px-6 pt-10 pb-10">
+      <header className="flex items-center justify-between border-b border-border pb-4">
+        <BrandMark size="md" />
+      </header>
+      <div className="space-y-1">
+        <p className="eyebrow">Continue as</p>
+        <h1 className="font-display text-4xl text-foreground">Choose a profile</h1>
+      </div>
+      <ul className="flex flex-col gap-2">
         {sorted.map((u) => (
           <li key={u.id}>
             <button
               type="button"
               onClick={() => setCurrentUser(u.id)}
-              className="flex w-full items-center justify-between rounded-md border bg-card p-4 text-left shadow-sm transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="flex w-full items-center justify-between rounded-lg border border-border bg-card px-4 py-3.5 text-left transition-colors hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span className="font-medium">{u.name}</span>
-              <Badge variant={u.role === 'tutor' ? 'default' : 'secondary'}>
-                {u.role}
-              </Badge>
+              <Badge variant={u.role === 'tutor' ? 'default' : 'secondary'}>{u.role}</Badge>
             </button>
           </li>
         ))}
       </ul>
-      <Button variant="outline" onClick={onNewProfile}>
+      <Button variant="outline" onClick={onNewProfile} className="mt-auto">
         + New profile
       </Button>
     </main>
@@ -109,11 +101,20 @@ function ProfilePicker({
 
 function HomeSkeleton() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-8 p-6">
-      <Skeleton className="h-8 w-64" />
-      <div className="flex w-full flex-col gap-4">
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-20 w-full" />
+    <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-10">
+      <div className="mb-16 flex justify-center">
+        <Skeleton className="h-6 w-28 rounded" />
+      </div>
+      <div className="flex flex-1 flex-col justify-center gap-10">
+        <div className="space-y-3 text-center">
+          <Skeleton className="mx-auto h-3 w-16" />
+          <Skeleton className="mx-auto h-12 w-72" />
+          <Skeleton className="mx-auto h-4 w-56" />
+        </div>
+        <div className="flex w-full flex-col gap-3">
+          <Skeleton className="h-14 w-full rounded-lg" />
+          <Skeleton className="h-14 w-full rounded-lg" />
+        </div>
       </div>
     </main>
   );
