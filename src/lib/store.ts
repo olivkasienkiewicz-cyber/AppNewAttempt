@@ -225,10 +225,13 @@ export function bookSlot(slotId: string, studentId: string): Slot | { error: 'sl
   };
   const student = current.users[studentId];
   const tutor = current.users[slot.tutorId];
+  // Per A3.6: same phrasing for both roles, DD.MM date format.
+  const [, mm, dd] = slot.date.split('-');
+  const ddmm = `${dd}.${mm}`;
   const tutorNotif: Notification = {
     id: crypto.randomUUID(),
     recipientUserId: slot.tutorId,
-    message: `${student?.name ?? 'A student'} booked your slot on ${slot.date} at ${slot.startTime}.`,
+    message: `You have an upcoming meeting with ${student?.name ?? 'a student'} at ${slot.startTime} on ${ddmm}.`,
     relatedSlotId: slot.id,
     read: false,
     createdAt: now,
@@ -236,7 +239,7 @@ export function bookSlot(slotId: string, studentId: string): Slot | { error: 'sl
   const studentNotif: Notification = {
     id: crypto.randomUUID(),
     recipientUserId: studentId,
-    message: `You booked ${tutor?.name ?? 'a tutor'} on ${slot.date} at ${slot.startTime}.`,
+    message: `You have an upcoming meeting with ${tutor?.name ?? 'a tutor'} at ${slot.startTime} on ${ddmm}.`,
     relatedSlotId: slot.id,
     read: false,
     createdAt: now,
