@@ -9,18 +9,16 @@ import { useAppState, setCurrentUser, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/brand/page-header';
+import { EmptyState } from '@/components/brand/empty-state';
 
 function endTime(startTime: string, durationMinutes: number): string {
   const start = parse(startTime, 'HH:mm', new Date());
   return format(addMinutes(start, durationMinutes), 'HH:mm');
 }
-
 function dayHeader(isoDate: string): string {
   return format(parse(isoDate, 'yyyy-MM-dd', new Date()), 'EEE, d MMM');
 }
@@ -48,104 +46,78 @@ export default function TutorHomePage() {
     return Array.from(map.entries());
   }, [state.slots, currentUser]);
 
-  if (!hydrated) {
-    return <TutorHomeSkeleton />;
-  }
+  if (!hydrated) return <TutorHomeSkeleton />;
 
   if (!currentUser) {
     return (
       <div className="p-6">
-        Not signed in. <Link href="/" className="underline">Go to start</Link>.
+        Not signed in. <Link href="/" className="text-foreground underline underline-offset-4">Go to start</Link>.
       </div>
     );
   }
   if (currentUser.role !== 'tutor') {
     return (
       <div className="p-6">
-        This page is for tutors. <Link href="/" className="underline">Go back</Link>.
+        This page is for tutors. <Link href="/" className="text-foreground underline underline-offset-4">Go back</Link>.
       </div>
     );
   }
 
-  const handleSwitchAccount = () => {
-    setCurrentUser(null);
-    router.push('/');
-  };
+  const handleSwitchAccount = () => { setCurrentUser(null); router.push('/'); };
+
   return (
-    <div className="mx-auto max-w-2xl p-4">
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Hi, {currentUser.name}</h1>
-        <div className="flex items-center gap-1">
-          <Link
-            href="/notifications"
-            aria-label="Notifications"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent"
-          >
-            <Bell className="h-5 w-5" />
-          </Link>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              aria-label="Account menu"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent outline-none"
-            >
-              <MoreVertical className="h-5 w-5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onClick={() => router.push('/tutor/availability')}
-                className="cursor-pointer"
-              >
-                Edit availability
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={handleSwitchAccount}
-                className="cursor-pointer"
-              >
-                Switch account
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
+    <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+      <PageHeader>
+        <Link href="/notifications" aria-label="Notifications"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Bell className="h-[18px] w-[18px]" />
+        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label="Account menu"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <MoreVertical className="h-[18px] w-[18px]" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => router.push('/tutor/availability')} className="cursor-pointer">
+              Edit availability
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSwitchAccount} className="cursor-pointer">
+              Switch account
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </PageHeader>
+
+      <div className="mb-8 space-y-1">
+        <p className="eyebrow">Your week</p>
+        <h1 className="font-display text-4xl text-foreground">Hi, {currentUser.name}.</h1>
+      </div>
 
       {groups.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center">
-          <p className="mb-4 text-muted-foreground">
-            You haven&apos;t published any slots yet. Start by editing your availability.
+        <EmptyState>
+          <p className="mb-4">
+            You haven&apos;t published any slots yet. Start by setting your availability for the weeks ahead.
           </p>
-          <Button onClick={() => router.push('/tutor/availability')}>
-            Edit availability
-          </Button>
-        </div>
+          <Button onClick={() => router.push('/tutor/availability')}>Edit availability</Button>
+        </EmptyState>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-8">
           {groups.map(([date, slots]) => (
             <section key={date}>
-              <h2 className="mb-2 text-sm font-medium text-muted-foreground">
-                {dayHeader(date)}
-              </h2>
-              <ul className="space-y-2">
+              <h2 className="eyebrow mb-3">{dayHeader(date)}</h2>
+              <ul className="space-y-1.5">
                 {slots.map((slot) => {
                   const end = endTime(slot.startTime, slot.durationMinutes);
-                  const booker = slot.bookedByStudentId
-                    ? state.users[slot.bookedByStudentId]
-                    : null;
+                  const booker = slot.bookedByStudentId ? state.users[slot.bookedByStudentId] : null;
                   return (
-                    <li
-                      key={slot.id}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
-                      <span className="font-mono text-sm">
+                    <li key={slot.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                      <span className="text-sm font-medium tabular-nums text-foreground">
                         {slot.startTime}–{end}
                       </span>
                       {slot.status === 'free' ? (
-                        <span className="rounded-full bg-gray-200 px-3 py-1 text-xs text-gray-700">
-                          Free
-                        </span>
+                        <StatusPill tone="neutral">Free</StatusPill>
                       ) : (
-                        <span className="rounded-full bg-green-100 px-3 py-1 text-xs text-green-800">
-                          Booked by {booker?.name ?? 'student'}
-                        </span>
+                        <StatusPill tone="booked">Booked · {booker?.name ?? 'student'}</StatusPill>
                       )}
                     </li>
                   );
@@ -155,31 +127,50 @@ export default function TutorHomePage() {
           ))}
         </div>
       )}
-    </div>
+    </main>
+  );
+}
+
+function StatusPill({ tone, children }: { tone: 'neutral' | 'booked'; children: React.ReactNode }) {
+  return (
+    <span className={
+      tone === 'booked'
+        ? 'inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-accent-foreground'
+        : 'inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
+    }>
+      <span aria-hidden className={
+        tone === 'booked' ? 'h-1.5 w-1.5 rounded-full bg-success' : 'h-1.5 w-1.5 rounded-full bg-muted-foreground/50'
+      } />
+      {children}
+    </span>
   );
 }
 
 function TutorHomeSkeleton() {
   return (
-    <div className="mx-auto max-w-2xl p-4">
-      <header className="mb-6 flex items-center justify-between">
-        <Skeleton className="h-6 w-32" />
+    <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+      <header className="mb-8 flex items-center justify-between border-b border-border pb-4">
+        <Skeleton className="h-6 w-28" />
         <div className="flex items-center gap-1">
-          <Skeleton className="h-9 w-9 rounded-md" />
-          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <Skeleton className="h-10 w-10 rounded-md" />
         </div>
       </header>
-      <div className="space-y-6">
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-10 w-56" />
+      </div>
+      <div className="space-y-8">
         {Array.from({ length: 2 }).map((_, i) => (
           <section key={i}>
-            <Skeleton className="mb-2 h-4 w-32" />
-            <div className="space-y-2">
+            <Skeleton className="mb-3 h-3 w-28" />
+            <div className="space-y-1.5">
               <Skeleton className="h-12 w-full rounded-lg" />
               <Skeleton className="h-12 w-full rounded-lg" />
             </div>
           </section>
         ))}
       </div>
-    </div>
+    </main>
   );
 }
