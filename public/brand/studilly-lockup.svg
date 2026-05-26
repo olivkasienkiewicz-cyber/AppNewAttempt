@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 36" role="img" aria-label="Studilly">
+  <g>
+    <rect x="2" y="4"  width="22" height="4.2" rx="1.4" fill="#0E2A47"/>
+    <rect x="2" y="10" width="22" height="4.2" rx="1.4" fill="#16B8A7"/>
+    <rect x="2" y="16" width="22" height="4.2" rx="1.4" fill="#0E2A47"/>
+    <rect x="2" y="22" width="16" height="4.2" rx="1.4" fill="#7CD8C5"/>
+  </g>
+  <text x="36" y="22" font-family="Inter, system-ui, sans-serif" font-size="18" font-weight="500" fill="#0E2A47" letter-spacing="-0.2">Studilly</text>
+</svg>
