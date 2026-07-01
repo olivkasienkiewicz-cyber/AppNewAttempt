@@ -2,7 +2,8 @@
 
 import { Suspense, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createUser, setCurrentUser, type Role } from '@/lib/store';
+import { createUser, setCurrentUser, getState, type Role } from '@/lib/store';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -38,6 +39,18 @@ function NameEntryForm() {
     if (trimmed.length > MAX_LEN) { setError(`Name must be ${MAX_LEN} characters or fewer.`); return; }
     const user = createUser(trimmed, role);
     setCurrentUser(user.id);
+
+    const confirmed = getState();
+    if (confirmed.currentUserId !== user.id || !confirmed.users[user.id]) {
+      setError(
+        "Your browser blocked local storage, so we couldn't save your profile. " +
+        "Try leaving private/incognito mode, or open this app in its own browser tab " +
+        "instead of an embedded preview."
+      );
+      toast.error("Couldn't save your profile — storage is blocked in this browser context.");
+      return;
+    }
+
     router.replace(role === 'tutor' ? '/tutor' : '/student');
   };
 
