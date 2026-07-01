@@ -94,7 +94,15 @@ function readFromStorage(): AppState {
 function writeToStorage(state: AppState): void {
   if (!isBrowser()) return;
   const serialized = JSON.stringify(state);
-  window.localStorage.setItem(STORAGE_KEY, serialized);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, serialized);
+  } catch (err) {
+    console.error('Failed to persist app state to localStorage:', err);
+    cachedRaw = null;
+    cachedSnapshot = state;
+    emit();
+    return;
+  }
   cachedRaw = serialized;
   cachedSnapshot = state;
   emit();
