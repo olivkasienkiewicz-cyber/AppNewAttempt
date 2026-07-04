@@ -48,10 +48,22 @@ export default function TutorHomePage() {
 
   if (!hydrated) return <TutorHomeSkeleton />;
 
-  if (!currentUser) {
+ if (!currentUser) {
     return (
-      <div className="p-6">
-        Not signed in. <Link href="/" className="text-foreground underline underline-offset-4">Go to start</Link>.
+      <div className="p-6 space-y-4">
+        <p>
+          Not signed in. <Link href="/" className="text-foreground underline underline-offset-4">Go to start</Link>.
+        </p>
+        <div className="rounded-md border border-border bg-muted p-3 text-xs">
+          <p className="mb-2 font-medium">Temporary debug info (remove after fixing):</p>
+          <p className="mb-1">currentUserId: {JSON.stringify(state.currentUserId)}</p>
+          <p className="mb-1">known user ids: {JSON.stringify(Object.keys(state.users))}</p>
+          <pre className="whitespace-pre-wrap break-all">
+            {typeof window !== 'undefined'
+              ? window.localStorage.getItem('tutor_app_state_v1')
+              : 'no window'}
+          </pre>
+        </div>
       </div>
     );
   }
