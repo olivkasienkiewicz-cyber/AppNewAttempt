@@ -3,6 +3,8 @@ import Resend from 'next-auth/providers/resend';
 import PostgresAdapter from '@auth/pg-adapter';
 import { Pool } from '@neondatabase/serverless';
 
+type RoleField = { role?: 'tutor' | 'student' | null };
+
 // A fresh Pool per invocation (not module-scope) — this matches the pattern
 // Neon's own Auth.js guide uses for serverless environments.
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
@@ -23,11 +25,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     callbacks: {
       async session({ session, user }) {
         session.user.id = user.id;
-        // The adapter's getUser/getSessionAndUser do `select * from users`,
-        // so `role` rides along on `user` even though it's not part of the
-        // Auth.js type — this just surfaces it onto the session.
-        session.user.role =
-          (user as typeof user & { role?: 'tutor' | 'student' | null }).role ?? null;
+        // `role` isn't part of Auth.js's built-in AdapterUser/User types, but
+        // the pg-adapter's `select * from users` means it rides along on
+        // `user` at runtime anyway — this just surfaces it onto the session,
+        // with a cast on both sides since neither type declares it.
+        (session.user as typeof session.user & RoleField).role =
+          (user as typeof user & RoleField).role ?? null;
         return session;
       },
     },
