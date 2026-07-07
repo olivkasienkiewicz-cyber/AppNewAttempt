@@ -39,16 +39,11 @@ export type AppState = {
   slots: Record<string, Slot>;
   notifications: Record<string, Notification>;
   // true once the first fetch from the API has completed (success or failure).
-  // Pages should treat "not dataLoaded" the same way they used to treat
-  // "not hydrated" — show a skeleton, don't render real content yet.
   dataLoaded: boolean;
 };
 
-// Window 8: the "current user" is still nothing more than an id kept on this
-// device — no real login. Auth is out of scope for this migration; only the
-// User/Slot/Notification records themselves moved into Postgres.
-const CURRENT_USER_KEY = 'tutor_current_user_id_v1';
-
+// Window 9: currentUserId is now set from the real Auth.js session (via
+// AuthBridge in src/components/providers.tsx), not from localStorage.
 const EMPTY_STATE: AppState = Object.freeze({
   currentUserId: null,
   users: {},
@@ -56,8 +51,6 @@ const EMPTY_STATE: AppState = Object.freeze({
   notifications: {},
   dataLoaded: false,
 }) as AppState;
-
-const isBrowser = (): boolean => typeof window !== 'undefined';
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -71,26 +64,6 @@ function subscribe(listener: Listener): () => void {
 
 let snapshot: AppState = EMPTY_STATE;
 let refreshInFlight: Promise<void> | null = null;
-
-function readCurrentUserId(): string | null {
-  if (!isBrowser()) return null;
-  try {
-    return window.localStorage.getItem(CURRENT_USER_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function writeCurrentUserId(id: string | null): void {
-  if (!isBrowser()) return;
-  try {
-    if (id) window.localStorage.setItem(CURRENT_USER_KEY, id);
-    else window.localStorage.removeItem(CURRENT_USER_KEY);
-  } catch {
-    // Storage blocked (private/incognito edge cases) — current-user just
-    // won't survive a reload; not fatal, matches old best-effort behavior.
-  }
-}
 
 class ApiError extends Error {
   status: number;
@@ -129,7 +102,7 @@ async function refresh(): Promise<void> {
         api<Notification[]>('/api/notifications'),
       ]);
       snapshot = {
-        currentUserId: readCurrentUserId(),
+        ...snapshot,
         users: Object.fromEntries(users.map((u) => [u.id, u])),
         slots: Object.fromEntries(slots.map((s) => [s.id, s])),
         notifications: Object.fromEntries(notifications.map((n) => [n.id, n])),
@@ -137,8 +110,6 @@ async function refresh(): Promise<void> {
       };
     } catch (err) {
       console.error('Failed to load app state from the database:', err);
-      // Surface *something* rather than spinning forever — keep whatever
-      // we already had cached, just mark loading as finished.
       snapshot = { ...snapshot, dataLoaded: true };
     }
     emit();
@@ -160,33 +131,26 @@ export function useAppState(): AppState {
       void refresh();
     }
     const onFocus = () => void refresh();
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === CURRENT_USER_KEY) {
-        snapshot = { ...snapshot, currentUserId: readCurrentUserId() };
-        emit();
-      }
-    };
     window.addEventListener('focus', onFocus);
-    window.addEventListener('storage', onStorage);
     return () => {
       window.removeEventListener('focus', onFocus);
-      window.removeEventListener('storage', onStorage);
     };
   }, []);
 
   return useSyncExternalStore(subscribe, () => snapshot, () => EMPTY_STATE);
 }
 
-// Lets a page force a fresh read (e.g. after an action a different
-// tab/device might have caused, or just to be safe on retry).
 export function refreshState(): Promise<void> {
   return refresh();
 }
 
+// Called only by AuthBridge, driven by the real Auth.js session — never by
+// page code picking an arbitrary id anymore.
 export function setCurrentUser(userId: string | null): void {
-  writeCurrentUserId(userId);
+  if (snapshot.currentUserId === userId) return;
   snapshot = { ...snapshot, currentUserId: userId };
   emit();
+  if (userId) void refresh(); // pick up this user's row right away post-login
 }
 
 export function getCurrentUser(): User | null {
@@ -194,9 +158,11 @@ export function getCurrentUser(): User | null {
   return id ? snapshot.users[id] ?? null : null;
 }
 
-export async function createUser(name: string, role: Role): Promise<User> {
-  const user = await api<User>('/api/users', {
-    method: 'POST',
+// Sets this user's name + role for the first time (or re-sets them). The
+// server derives *which* user from the session — there's no id parameter.
+export async function completeOnboarding(name: string, role: Role): Promise<User> {
+  const user = await api<User>('/api/users/me', {
+    method: 'PATCH',
     body: JSON.stringify({ name, role }),
   });
   snapshot = { ...snapshot, users: { ...snapshot.users, [user.id]: user } };
