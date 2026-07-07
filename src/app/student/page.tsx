@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  bookSlot, setCurrentUser, useAppState, type Slot, type User,
+  bookSlot, useAppState, type Slot, type User,
 } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import {
@@ -90,7 +91,7 @@ export default function StudentBrowsePage() {
     setPendingSlot(null);
   };
 
-  const handleSwitchAccount = () => { setCurrentUser(null); router.push('/'); };
+  const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 pt-8 pb-12 sm:px-6">
