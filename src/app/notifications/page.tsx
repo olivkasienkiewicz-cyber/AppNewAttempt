@@ -26,9 +26,11 @@ export default function NotificationsPage() {
   }, [state.notifications, currentUser]);
 
   useEffect(() => {
-    if (!hydrated || !currentUser) return;
-    markAllRead(currentUser.id);
-  }, [hydrated, currentUser]);
+    if (!hydrated || !state.dataLoaded || !currentUser) return;
+    void markAllRead(currentUser.id).catch((err) => {
+      console.error('Failed to mark notifications read:', err);
+    });
+  }, [hydrated, state.dataLoaded, currentUser]);
 
   const homeHref = currentUser?.role === 'tutor' ? '/tutor' : currentUser?.role === 'student' ? '/student' : '/';
 
@@ -45,7 +47,7 @@ export default function NotificationsPage() {
         <h1 className="font-display text-4xl text-foreground">Notifications</h1>
       </div>
 
-      {!hydrated ? (
+      {!hydrated || !state.dataLoaded ? (
         <NotificationsSkeleton />
       ) : !currentUser ? (
         <p className="text-sm text-muted-foreground">
