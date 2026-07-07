@@ -1,6 +1,6 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 export type Role = 'tutor' | 'student';
 export type SlotStatus = 'free' | 'booked';
@@ -38,141 +38,181 @@ export type AppState = {
   users: Record<string, User>;
   slots: Record<string, Slot>;
   notifications: Record<string, Notification>;
+  // true once the first fetch from the API has completed (success or failure).
+  // Pages should treat "not dataLoaded" the same way they used to treat
+  // "not hydrated" — show a skeleton, don't render real content yet.
+  dataLoaded: boolean;
 };
 
-const STORAGE_KEY = 'tutor_app_state_v1';
+// Window 8: the "current user" is still nothing more than an id kept on this
+// device — no real login. Auth is out of scope for this migration; only the
+// User/Slot/Notification records themselves moved into Postgres.
+const CURRENT_USER_KEY = 'tutor_current_user_id_v1';
 
 const EMPTY_STATE: AppState = Object.freeze({
   currentUserId: null,
   users: {},
   slots: {},
   notifications: {},
+  dataLoaded: false,
 }) as AppState;
 
 const isBrowser = (): boolean => typeof window !== 'undefined';
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
-
-let cachedRaw: string | null = null;
-let cachedSnapshot: AppState = EMPTY_STATE;
-
-function normalize(parsed: unknown): AppState {
-  if (!parsed || typeof parsed !== 'object') return { ...EMPTY_STATE };
-  const p = parsed as Partial<AppState>;
-  return {
-    currentUserId: typeof p.currentUserId === 'string' ? p.currentUserId : null,
-    users: p.users && typeof p.users === 'object' ? (p.users as Record<string, User>) : {},
-    slots: p.slots && typeof p.slots === 'object' ? (p.slots as Record<string, Slot>) : {},
-    notifications: p.notifications && typeof p.notifications === 'object' ? (p.notifications as Record<string, Notification>) : {},
-  };
-}
-
-function readFromStorage(): AppState {
-  if (!isBrowser()) return EMPTY_STATE;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (raw == null) {
-      if (cachedRaw !== null) {
-        cachedRaw = null;
-        cachedSnapshot = EMPTY_STATE;
-      }
-      return cachedSnapshot;
-    }
-    if (raw === cachedRaw) return cachedSnapshot;
-    const parsed = JSON.parse(raw);
-    cachedRaw = raw;
-    cachedSnapshot = normalize(parsed);
-    return cachedSnapshot;
-  } catch {
-    cachedRaw = null;
-    cachedSnapshot = EMPTY_STATE;
-    return EMPTY_STATE;
-  }
-}
-
-function writeToStorage(state: AppState): void {
-  if (!isBrowser()) return;
-  const serialized = JSON.stringify(state);
-  try {
-    window.localStorage.setItem(STORAGE_KEY, serialized);
-  } catch (err) {
-    console.error('Failed to persist app state to localStorage:', err);
-    cachedRaw = null;
-    cachedSnapshot = state;
-    emit();
-    return;
-  }
-  cachedRaw = serialized;
-  cachedSnapshot = state;
-  emit();
-}
-
 function emit(): void {
   listeners.forEach((l) => l());
 }
-
 function subscribe(listener: Listener): () => void {
   listeners.add(listener);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key !== STORAGE_KEY && e.key !== null) return;
-    cachedRaw = null;
-    listener();
-  };
-  if (isBrowser()) {
-    window.addEventListener('storage', onStorage);
+  return () => listeners.delete(listener);
+}
+
+let snapshot: AppState = EMPTY_STATE;
+let refreshInFlight: Promise<void> | null = null;
+
+function readCurrentUserId(): string | null {
+  if (!isBrowser()) return null;
+  try {
+    return window.localStorage.getItem(CURRENT_USER_KEY);
+  } catch {
+    return null;
   }
-  return () => {
-    listeners.delete(listener);
-    if (isBrowser()) {
-      window.removeEventListener('storage', onStorage);
+}
+
+function writeCurrentUserId(id: string | null): void {
+  if (!isBrowser()) return;
+  try {
+    if (id) window.localStorage.setItem(CURRENT_USER_KEY, id);
+    else window.localStorage.removeItem(CURRENT_USER_KEY);
+  } catch {
+    // Storage blocked (private/incognito edge cases) — current-user just
+    // won't survive a reload; not fatal, matches old best-effort behavior.
+  }
+}
+
+class ApiError extends Error {
+  status: number;
+  body: unknown;
+  constructor(status: number, body: unknown) {
+    super(`request_failed_${status}`);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, {
+    ...init,
+    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+  });
+  if (!res.ok) {
+    let body: unknown = null;
+    try {
+      body = await res.json();
+    } catch {
+      /* ignore non-JSON error bodies */
     }
-  };
+    throw new ApiError(res.status, body);
+  }
+  return (await res.json()) as T;
+}
+
+async function refresh(): Promise<void> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      const [users, slots, notifications] = await Promise.all([
+        api<User[]>('/api/users'),
+        api<Slot[]>('/api/slots'),
+        api<Notification[]>('/api/notifications'),
+      ]);
+      snapshot = {
+        currentUserId: readCurrentUserId(),
+        users: Object.fromEntries(users.map((u) => [u.id, u])),
+        slots: Object.fromEntries(slots.map((s) => [s.id, s])),
+        notifications: Object.fromEntries(notifications.map((n) => [n.id, n])),
+        dataLoaded: true,
+      };
+    } catch (err) {
+      console.error('Failed to load app state from the database:', err);
+      // Surface *something* rather than spinning forever — keep whatever
+      // we already had cached, just mark loading as finished.
+      snapshot = { ...snapshot, dataLoaded: true };
+    }
+    emit();
+  })().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 export function getState(): AppState {
-  return readFromStorage();
+  return snapshot;
 }
 
-export function setState(next: Partial<AppState> | ((prev: AppState) => AppState)): void {
-  const prev = readFromStorage();
-  const resolved = typeof next === 'function' ? next(prev) : { ...prev, ...next };
-  writeToStorage(resolved);
+export function useAppState(): AppState {
+  const started = useRef(false);
+  useEffect(() => {
+    if (!started.current) {
+      started.current = true;
+      void refresh();
+    }
+    const onFocus = () => void refresh();
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === CURRENT_USER_KEY) {
+        snapshot = { ...snapshot, currentUserId: readCurrentUserId() };
+        emit();
+      }
+    };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  return useSyncExternalStore(subscribe, () => snapshot, () => EMPTY_STATE);
 }
 
-export function createUser(name: string, role: Role): User {
-  const user: User = {
-    id: crypto.randomUUID(),
-    name,
-    role,
-    createdAt: new Date().toISOString(),
-  };
-  setState((prev) => ({
-    ...prev,
-    users: { ...prev.users, [user.id]: user },
-  }));
-  return user;
+// Lets a page force a fresh read (e.g. after an action a different
+// tab/device might have caused, or just to be safe on retry).
+export function refreshState(): Promise<void> {
+  return refresh();
 }
 
 export function setCurrentUser(userId: string | null): void {
-  setState({ currentUserId: userId });
+  writeCurrentUserId(userId);
+  snapshot = { ...snapshot, currentUserId: userId };
+  emit();
 }
 
 export function getCurrentUser(): User | null {
-  const s = getState();
-  if (!s.currentUserId) return null;
-  return s.users[s.currentUserId] ?? null;
+  const id = snapshot.currentUserId;
+  return id ? snapshot.users[id] ?? null : null;
+}
+
+export async function createUser(name: string, role: Role): Promise<User> {
+  const user = await api<User>('/api/users', {
+    method: 'POST',
+    body: JSON.stringify({ name, role }),
+  });
+  snapshot = { ...snapshot, users: { ...snapshot.users, [user.id]: user } };
+  emit();
+  return user;
 }
 
 export function listTutors(): User[] {
-  return Object.values(getState().users).filter((u) => u.role === 'tutor');
+  return Object.values(snapshot.users).filter((u) => u.role === 'tutor');
 }
 
 export function listSlotsForTutor(
   tutorId: string,
   opts?: { onlyFree?: boolean; fromDate?: Date }
 ): Slot[] {
-  let slots = Object.values(getState().slots).filter((s) => s.tutorId === tutorId);
+  let slots = Object.values(snapshot.slots).filter((s) => s.tutorId === tutorId);
   if (opts?.onlyFree) {
     slots = slots.filter((s) => s.status === 'free');
   }
@@ -191,109 +231,67 @@ export function listSlotsForTutor(
   return slots;
 }
 
-export function createSlot(
+export async function createSlot(
   input: Omit<Slot, 'id' | 'status' | 'bookedByStudentId' | 'bookedAt' | 'createdAt'>
-): Slot {
-  const slot: Slot = {
-    ...input,
-    id: crypto.randomUUID(),
-    status: 'free',
-    bookedByStudentId: null,
-    bookedAt: null,
-    createdAt: new Date().toISOString(),
-  };
-  setState((prev) => ({
-    ...prev,
-    slots: { ...prev.slots, [slot.id]: slot },
-  }));
+): Promise<Slot> {
+  const slot = await api<Slot>('/api/slots', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  snapshot = { ...snapshot, slots: { ...snapshot.slots, [slot.id]: slot } };
+  emit();
   return slot;
 }
 
-export function deleteSlot(slotId: string): void {
-  setState((prev) => {
-    if (!(slotId in prev.slots)) return prev;
-    const nextSlots = { ...prev.slots };
-    delete nextSlots[slotId];
-    return { ...prev, slots: nextSlots };
-  });
+export async function deleteSlot(slotId: string): Promise<void> {
+  await api<{ ok: true }>(`/api/slots/${slotId}`, { method: 'DELETE' });
+  const nextSlots = { ...snapshot.slots };
+  delete nextSlots[slotId];
+  snapshot = { ...snapshot, slots: nextSlots };
+  emit();
 }
 
-export function bookSlot(slotId: string, studentId: string): Slot | { error: 'slot_taken' } {
-  const current = getState();
-  const slot = current.slots[slotId];
-  if (!slot || slot.status !== 'free') {
-    return { error: 'slot_taken' };
-  }
-  const now = new Date().toISOString();
-  const updatedSlot: Slot = {
-    ...slot,
-    status: 'booked',
-    bookedByStudentId: studentId,
-    bookedAt: now,
-  };
-  const student = current.users[studentId];
-  const tutor = current.users[slot.tutorId];
-  // Per A3.6: same phrasing for both roles, DD.MM date format.
-  const [, mm, dd] = slot.date.split('-');
-  const ddmm = `${dd}.${mm}`;
-  const tutorNotif: Notification = {
-    id: crypto.randomUUID(),
-    recipientUserId: slot.tutorId,
-    message: `You have an upcoming meeting with ${student?.name ?? 'a student'} at ${slot.startTime} on ${ddmm}.`,
-    relatedSlotId: slot.id,
-    read: false,
-    createdAt: now,
-  };
-  const studentNotif: Notification = {
-    id: crypto.randomUUID(),
-    recipientUserId: studentId,
-    message: `You have an upcoming meeting with ${tutor?.name ?? 'a tutor'} at ${slot.startTime} on ${ddmm}.`,
-    relatedSlotId: slot.id,
-    read: false,
-    createdAt: now,
-  };
-  let conflict = false;
-  setState((prev) => {
-    const latest = prev.slots[slotId];
-    if (!latest || latest.status !== 'free') {
-      conflict = true;
-      return prev;
-    }
-    return {
-      ...prev,
-      slots: { ...prev.slots, [slotId]: updatedSlot },
+export async function bookSlot(
+  slotId: string,
+  studentId: string
+): Promise<Slot | { error: 'slot_taken' }> {
+  try {
+    const result = await api<{ slot: Slot; notifications: Notification[] }>(
+      `/api/slots/${slotId}/book`,
+      { method: 'POST', body: JSON.stringify({ studentId }) }
+    );
+    snapshot = {
+      ...snapshot,
+      slots: { ...snapshot.slots, [result.slot.id]: result.slot },
       notifications: {
-        ...prev.notifications,
-        [tutorNotif.id]: tutorNotif,
-        [studentNotif.id]: studentNotif,
+        ...snapshot.notifications,
+        ...Object.fromEntries(result.notifications.map((n) => [n.id, n])),
       },
     };
-  });
-  if (conflict) return { error: 'slot_taken' };
-  return updatedSlot;
+    emit();
+    return result.slot;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409) {
+      return { error: 'slot_taken' };
+    }
+    throw err;
+  }
 }
 
 export function listNotifications(userId: string): Notification[] {
-  return Object.values(getState().notifications)
+  return Object.values(snapshot.notifications)
     .filter((n) => n.recipientUserId === userId)
     .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
 }
 
-export function markAllRead(userId: string): void {
-  setState((prev) => {
-    let changed = false;
-    const nextNotifs: Record<string, Notification> = { ...prev.notifications };
-    for (const n of Object.values(prev.notifications)) {
-      if (n.recipientUserId === userId && !n.read) {
-        nextNotifs[n.id] = { ...n, read: true };
-        changed = true;
-      }
-    }
-    if (!changed) return prev;
-    return { ...prev, notifications: nextNotifs };
+export async function markAllRead(userId: string): Promise<void> {
+  const updated = await api<Notification[]>('/api/notifications', {
+    method: 'PATCH',
+    body: JSON.stringify({ userId }),
   });
-}
-
-export function useAppState(): AppState {
-  return useSyncExternalStore(subscribe, getState, () => EMPTY_STATE);
+  if (updated.length === 0) return;
+  const nextNotifs = { ...snapshot.notifications };
+  for (const n of updated) nextNotifs[n.id] = n;
+  snapshot = { ...snapshot, notifications: nextNotifs };
+  emit();
 }
