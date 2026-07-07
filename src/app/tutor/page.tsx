@@ -3,9 +3,10 @@
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 import { Bell, MoreVertical } from 'lucide-react';
 import { parse, addMinutes, format } from 'date-fns';
-import { useAppState, setCurrentUser, type Slot } from '@/lib/store';
+import { useAppState, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
@@ -63,7 +64,7 @@ export default function TutorHomePage() {
     );
   }
 
-  const handleSwitchAccount = () => { setCurrentUser(null); router.push('/'); };
+  const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
 
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
