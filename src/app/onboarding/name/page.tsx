@@ -2,7 +2,7 @@
 
 import { Suspense, useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createUser, setCurrentUser, getState, type Role } from '@/lib/store';
+import { createUser, setCurrentUser, type Role } from '@/lib/store';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,30 +28,27 @@ function NameEntryForm() {
 
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const trimmed = name.trim();
-  const canSubmit = role !== null && trimmed.length > 0 && trimmed.length <= MAX_LEN;
+  const canSubmit = role !== null && trimmed.length > 0 && trimmed.length <= MAX_LEN && !submitting;
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!role) { router.replace('/'); return; }
     if (trimmed.length === 0) { setError('Please enter your name.'); return; }
     if (trimmed.length > MAX_LEN) { setError(`Name must be ${MAX_LEN} characters or fewer.`); return; }
-    const user = createUser(trimmed, role);
-    setCurrentUser(user.id);
 
-    const confirmed = getState();
-    if (confirmed.currentUserId !== user.id || !confirmed.users[user.id]) {
-      setError(
-        "Your browser blocked local storage, so we couldn't save your profile. " +
-        "Try leaving private/incognito mode, or open this app in its own browser tab " +
-        "instead of an embedded preview."
-      );
-      toast.error("Couldn't save your profile — storage is blocked in this browser context.");
-      return;
+    setSubmitting(true);
+    try {
+      const user = await createUser(trimmed, role);
+      setCurrentUser(user.id);
+      router.replace(role === 'tutor' ? '/tutor' : '/student');
+    } catch {
+      setSubmitting(false);
+      setError("We couldn't save your profile — check your connection and try again.");
+      toast.error("Couldn't reach the server to create your profile.");
     }
-
-    router.replace(role === 'tutor' ? '/tutor' : '/student');
   };
 
   if (!role) {
@@ -98,7 +95,7 @@ function NameEntryForm() {
             )}
           </div>
           <Button type="submit" size="lg" disabled={!canSubmit} className="h-12 text-base">
-            Continue
+            {submitting ? 'Saving…' : 'Continue'}
           </Button>
         </form>
       </div>
