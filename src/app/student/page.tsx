@@ -77,12 +77,16 @@ export default function StudentBrowsePage() {
   const [pendingSlot, setPendingSlot] = useState<Slot | null>(null);
   const selectedTutor = selectedTutorId ? state.users[selectedTutorId] : undefined;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!pendingSlot) return;
     if (!state.currentUserId) { toast.error('You need to be signed in to book a slot.'); setPendingSlot(null); return; }
-    const result = bookSlot(pendingSlot.id, state.currentUserId);
-    if ('error' in result && result.error === 'slot_taken') toast.error('That slot was just taken');
-    else toast.success('Booking confirmed');
+    try {
+      const result = await bookSlot(pendingSlot.id, state.currentUserId);
+      if ('error' in result && result.error === 'slot_taken') toast.error('That slot was just taken');
+      else toast.success('Booking confirmed');
+    } catch {
+      toast.error("Couldn't reach the server — check your connection and try again.");
+    }
     setPendingSlot(null);
   };
 
@@ -103,7 +107,9 @@ export default function StudentBrowsePage() {
         <h1 className="font-display text-4xl text-foreground">Available sessions</h1>
       </div>
 
-      {tutors.length === 0 ? (
+      {!state.dataLoaded ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : tutors.length === 0 ? (
         <EmptyState>No tutors have joined yet. Switch to a tutor account to publish slots.</EmptyState>
       ) : (
         <>
