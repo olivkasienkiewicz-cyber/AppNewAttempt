@@ -24,7 +24,7 @@ export default function HomePage() {
     router.replace(user.role === 'tutor' ? '/tutor' : '/student');
   }, [hydrated, state.currentUserId, state.users, router]);
 
-  if (!hydrated) return <HomeSkeleton />;
+  if (!hydrated || !state.dataLoaded) return <HomeSkeleton />;
   if (state.currentUserId && state.users[state.currentUserId]) return <HomeSkeleton />;
 
   const users = Object.values(state.users);
