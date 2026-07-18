@@ -5,10 +5,14 @@ import { Pool } from '@neondatabase/serverless';
 
 type RoleField = { role?: 'tutor' | 'student' | null };
 
-// A fresh Pool per invocation (not module-scope) — this matches the pattern
-// Neon's own Auth.js guide uses for serverless environments.
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  // Vercel's serverless functions freeze between invocations rather than
+  // fully exiting — without this, unclosed pools accumulate connections
+  // against Neon's limit over time, which shows up as intermittent hangs.
+  if (typeof (globalThis as { process?: { on?: Function } }).process?.on === 'function') {
+    process.once('beforeExit', () => { void pool.end(); });
+  }
   return {
     adapter: PostgresAdapter(pool),
     session: { strategy: 'database' },
@@ -25,10 +29,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
     callbacks: {
       async session({ session, user }) {
         session.user.id = user.id;
-        // `role` isn't part of Auth.js's built-in AdapterUser/User types, but
-        // the pg-adapter's `select * from users` means it rides along on
-        // `user` at runtime anyway — this just surfaces it onto the session,
-        // with a cast on both sides since neither type declares it.
         (session.user as typeof session.user & RoleField).role =
           (user as typeof user & RoleField).role ?? null;
         return session;
