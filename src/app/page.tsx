@@ -1,57 +1,76 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { BrandMark } from '@/components/brand/brand-mark';
 
-export default function HomePage() {
-  const { data: session, status } = useSession();
+export default function LoginPage() {
   const router = useRouter();
+  const { status } = useSession();
+  const [email, setEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // If a session already exists when this page loads — e.g. you followed a
+  // stale bookmark, or landed here right after the callback resolved — bounce
+  // straight to '/', which does the role-based routing.
   useEffect(() => {
-    if (status !== 'authenticated') return;
-    const role = session?.user?.role;
-    if (!role) { router.replace('/onboarding'); return; }
-    router.replace(role === 'tutor' ? '/tutor' : '/student');
-  }, [status, session, router]);
+    if (status === 'authenticated') router.replace('/');
+  }, [status, router]);
 
-  if (status === 'loading' || status === 'authenticated') return <HomeSkeleton />;
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed) { setError('Enter your email.'); return; }
+    setSubmitting(true);
+    setError(null);
+    const result = await signIn('resend', {
+      email: trimmed,
+      redirect: false,
+      callbackUrl: '/',
+    });
+    setSubmitting(false);
+    if (result?.error) {
+      setError("Couldn't send the link — check the address and try again.");
+      return;
+    }
+    router.push('/login/check-email');
+  };
 
-  return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-8 px-6 pt-10 pb-10 text-center">
-      <BrandMark size="md" />
-      <div className="space-y-3">
-        <p className="eyebrow">Welcome</p>
-        <h1 className="font-display text-5xl text-foreground">A calmer way to book tutors</h1>
-        <p className="mx-auto max-w-xs text-sm text-muted-foreground">
-          Sign in with your email to get started — no password needed.
-        </p>
-      </div>
-      <Button size="lg" className="h-14 w-full text-base" onClick={() => router.push('/login')}>
-        Sign in
-      </Button>
-    </main>
-  );
-}
-
-function HomeSkeleton() {
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-10">
-      <div className="mb-16 flex justify-center">
-        <Skeleton className="h-6 w-28 rounded" />
-      </div>
-      <div className="flex flex-1 flex-col justify-center gap-10">
-        <div className="space-y-3 text-center">
-          <Skeleton className="mx-auto h-3 w-16" />
-          <Skeleton className="mx-auto h-12 w-72" />
-          <Skeleton className="mx-auto h-4 w-56" />
+      <header className="mb-10 flex justify-center border-b border-border pb-4">
+        <BrandMark size="md" />
+      </header>
+      <div className="flex flex-1 flex-col justify-center gap-8">
+        <div className="space-y-2 text-center">
+          <p className="eyebrow">Sign in</p>
+          <h1 className="font-display text-4xl text-foreground">What&apos;s your email?</h1>
+          <p className="text-sm text-muted-foreground">We&apos;ll send you a link — no password needed.</p>
         </div>
-        <div className="flex w-full flex-col gap-3">
-          <Skeleton className="h-14 w-full rounded-lg" />
-        </div>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email" className="text-sm">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (error) setError(null); }}
+              autoFocus
+              autoComplete="email"
+              placeholder="you@example.com"
+              className="h-12 text-base"
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <Button type="submit" size="lg" disabled={submitting} className="h-12 text-base">
+            {submitting ? 'Sending…' : 'Send me a link'}
+          </Button>
+        </form>
       </div>
     </main>
   );
