@@ -3,24 +3,20 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { useAppState } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BrandMark } from '@/components/brand/brand-mark';
 
 export default function HomePage() {
-  const { status } = useSession();
-  const state = useAppState();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     if (status !== 'authenticated') return;
-    if (!state.dataLoaded || !state.currentUserId) return;
-    const user = state.users[state.currentUserId];
-    if (!user) return; // this user's row hasn't loaded yet
-    if (!user.role) { router.replace('/onboarding'); return; }
-    router.replace(user.role === 'tutor' ? '/tutor' : '/student');
-  }, [status, state.dataLoaded, state.currentUserId, state.users, router]);
+    const role = session?.user?.role;
+    if (!role) { router.replace('/onboarding'); return; }
+    router.replace(role === 'tutor' ? '/tutor' : '/student');
+  }, [status, session, router]);
 
   if (status === 'loading' || status === 'authenticated') return <HomeSkeleton />;
 
