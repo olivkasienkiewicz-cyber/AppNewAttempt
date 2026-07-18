@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { signIn, useSession } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,9 +10,14 @@ import { BrandMark } from '@/components/brand/brand-mark';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { status } = useSession();
   const [email, setEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (status === 'authenticated') router.replace('/');
+  }, [status, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -20,7 +25,11 @@ export default function LoginPage() {
     if (!trimmed) { setError('Enter your email.'); return; }
     setSubmitting(true);
     setError(null);
-    const result = await signIn('resend', { email: trimmed, redirect: false });
+    const result = await signIn('resend', {
+      email: trimmed,
+      redirect: false,
+      callbackUrl: '/',
+    });
     setSubmitting(false);
     if (result?.error) {
       setError("Couldn't send the link — check the address and try again.");
