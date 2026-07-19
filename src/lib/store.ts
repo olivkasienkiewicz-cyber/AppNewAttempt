@@ -4,6 +4,7 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 
 export type Role = 'tutor' | 'student';
 export type SlotStatus = 'free' | 'booked';
+export type PaymentStatus = 'unpaid' | 'paid';
 
 export type User = {
   id: string;
@@ -19,6 +20,7 @@ export type Slot = {
   startTime: string;
   durationMinutes: number;
   status: SlotStatus;
+  paymentStatus: PaymentStatus;
   bookedByStudentId: string | null;
   bookedAt: string | null;
   createdAt: string;
@@ -31,6 +33,17 @@ export type Notification = {
   relatedSlotId: string | null;
   read: boolean;
   createdAt: string;
+};
+
+export type PaymentInfo = {
+  referenceCode: string;
+  amount: number;
+  currency: string;
+  bankDetails: {
+    accountHolder: string;
+    iban: string;
+    bankName: string;
+  };
 };
 
 export type AppState = {
@@ -198,7 +211,7 @@ export function listSlotsForTutor(
 }
 
 export async function createSlot(
-  input: Omit<Slot, 'id' | 'status' | 'bookedByStudentId' | 'bookedAt' | 'createdAt'>
+  input: Omit<Slot, 'id' | 'status' | 'paymentStatus' | 'bookedByStudentId' | 'bookedAt' | 'createdAt'>
 ): Promise<Slot> {
   const slot = await api<Slot>('/api/slots', {
     method: 'POST',
@@ -220,9 +233,9 @@ export async function deleteSlot(slotId: string): Promise<void> {
 export async function bookSlot(
   slotId: string,
   studentId: string
-): Promise<Slot | { error: 'slot_taken' }> {
+): Promise<{ slot: Slot; payment: PaymentInfo } | { error: 'slot_taken' }> {
   try {
-    const result = await api<{ slot: Slot; notifications: Notification[] }>(
+    const result = await api<{ slot: Slot; notifications: Notification[]; payment: PaymentInfo }>(
       `/api/slots/${slotId}/book`,
       { method: 'POST', body: JSON.stringify({ studentId }) }
     );
@@ -235,7 +248,7 @@ export async function bookSlot(
       },
     };
     emit();
-    return result.slot;
+    return { slot: result.slot, payment: result.payment };
   } catch (err) {
     if (err instanceof ApiError && err.status === 409) {
       return { error: 'slot_taken' };
