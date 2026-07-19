@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  bookSlot, useAppState, type Slot, type User,
+  bookSlot, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import {
@@ -76,6 +76,7 @@ export default function StudentBrowsePage() {
     [freeSlotsForTutor, selectedDay]);
 
   const [pendingSlot, setPendingSlot] = useState<Slot | null>(null);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const selectedTutor = selectedTutorId ? state.users[selectedTutorId] : undefined;
 
   const handleConfirm = async () => {
@@ -83,8 +84,12 @@ export default function StudentBrowsePage() {
     if (!state.currentUserId) { toast.error('You need to be signed in to book a slot.'); setPendingSlot(null); return; }
     try {
       const result = await bookSlot(pendingSlot.id, state.currentUserId);
-      if ('error' in result && result.error === 'slot_taken') toast.error('That slot was just taken');
-      else toast.success('Booking confirmed');
+      if ('error' in result) {
+        toast.error('That slot was just taken');
+      } else {
+        toast.success('Booking confirmed');
+        setPaymentInfo(result.payment);
+      }
     } catch {
       toast.error("Couldn't reach the server — check your connection and try again.");
     }
@@ -176,6 +181,52 @@ export default function StudentBrowsePage() {
         slot={pendingSlot}
         onConfirm={handleConfirm}
       />
+
+      {paymentInfo && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+            <h2 className="font-display text-2xl text-foreground">Complete payment by bank transfer</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your slot is booked. Please transfer the amount below to confirm it, using the reference code so we can match your payment.
+            </p>
+
+            <dl className="mt-5 space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Account holder</dt>
+                <dd className="text-right font-medium">{paymentInfo.bankDetails.accountHolder}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">IBAN</dt>
+                <dd className="text-right font-medium tabular-nums">{paymentInfo.bankDetails.iban}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Bank</dt>
+                <dd className="text-right font-medium">{paymentInfo.bankDetails.bankName}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Amount</dt>
+                <dd className="text-right font-medium tabular-nums">{paymentInfo.amount.toFixed(2)} {paymentInfo.currency}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Reference</dt>
+                <dd className="text-right font-medium tabular-nums">{paymentInfo.referenceCode}</dd>
+              </div>
+            </dl>
+
+            <p className="mt-4 text-xs text-muted-foreground">
+              Please include the reference code exactly as shown — it&apos;s the only way we can match your transfer to this booking.
+            </p>
+
+            <Button className="mt-6 w-full" onClick={() => setPaymentInfo(null)}>
+              Got it
+            </Button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
