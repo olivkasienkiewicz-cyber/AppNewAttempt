@@ -69,14 +69,7 @@ export default function NotificationsPage() {
                     <div className="mt-2 flex flex-wrap items-center gap-2">
                       <PaymentPill status={slot.paymentStatus} />
                       {slot.meetingUrl ? (
-                        
-                          href={slot.meetingUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-4"
-                        >
-                          <Link2 className="h-3 w-3" /> Meeting link
-                        </a>
+                        <MeetingLinkTag url={slot.meetingUrl} />
                       ) : (
                         <span className="text-xs text-muted-foreground">No meeting link yet</span>
                       )}
@@ -89,6 +82,14 @@ export default function NotificationsPage() {
         </ul>
       )}
     </main>
+  );
+}
+function MeetingLinkTag({ url }: { url: string }) {
+  const linkProps = { href: url, target: '_blank', rel: 'noopener noreferrer' };
+  return (
+    <a {...linkProps} className="inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-4">
+      <Link2 className="h-3 w-3" /> Meeting link
+    </a>
   );
 }
 function PaymentPill({ status }: { status: 'paid' | 'unpaid' }) {
