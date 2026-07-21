@@ -1,5 +1,4 @@
 'use client';
-
 import { useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -15,7 +14,6 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
-
 function endTime(startTime: string, durationMinutes: number): string {
   const start = parse(startTime, 'HH:mm', new Date());
   return format(addMinutes(start, durationMinutes), 'HH:mm');
@@ -23,13 +21,11 @@ function endTime(startTime: string, durationMinutes: number): string {
 function dayHeader(isoDate: string): string {
   return format(parse(isoDate, 'yyyy-MM-dd', new Date()), 'EEE, d MMM');
 }
-
 export default function TutorHomePage() {
   const hydrated = useHasHydrated();
   const state = useAppState();
   const router = useRouter();
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
-
   const groups = useMemo<Array<[string, Slot[]]>>(() => {
     if (!currentUser) return [];
     const mine = Object.values(state.slots)
@@ -46,9 +42,7 @@ export default function TutorHomePage() {
     }
     return Array.from(map.entries());
   }, [state.slots, currentUser]);
-
   if (!hydrated || !state.dataLoaded) return <TutorHomeSkeleton />;
-
   if (!currentUser) {
     return (
       <div className="p-6">
@@ -63,9 +57,7 @@ export default function TutorHomePage() {
       </div>
     );
   }
-
   const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
-
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
       <PageHeader>
@@ -88,12 +80,10 @@ export default function TutorHomePage() {
           </DropdownMenuContent>
         </DropdownMenu>
       </PageHeader>
-
       <div className="mb-8 space-y-1">
         <p className="eyebrow">Your week</p>
         <h1 className="font-display text-4xl text-foreground">Hi, {currentUser.name}.</h1>
       </div>
-
       {groups.length === 0 ? (
         <EmptyState>
           <p className="mb-4">
@@ -118,7 +108,12 @@ export default function TutorHomePage() {
                       {slot.status === 'free' ? (
                         <StatusPill tone="neutral">Free</StatusPill>
                       ) : (
-                        <StatusPill tone="booked">Booked · {booker?.name ?? 'student'}</StatusPill>
+                        <div className="flex items-center gap-1.5">
+                          <StatusPill tone="booked">Booked · {booker?.name ?? 'student'}</StatusPill>
+                          <StatusPill tone={slot.paymentStatus === 'paid' ? 'paid' : 'unpaid'}>
+                            {slot.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                          </StatusPill>
+                        </div>
                       )}
                     </li>
                   );
@@ -131,22 +126,26 @@ export default function TutorHomePage() {
     </main>
   );
 }
-
-function StatusPill({ tone, children }: { tone: 'neutral' | 'booked'; children: React.ReactNode }) {
+function StatusPill({ tone, children }: { tone: 'neutral' | 'booked' | 'paid' | 'unpaid'; children: React.ReactNode }) {
+  const styles = {
+    booked: 'bg-success-soft text-accent-foreground',
+    paid: 'bg-success-soft text-accent-foreground',
+    unpaid: 'bg-warning-soft text-accent-foreground',
+    neutral: 'border border-border text-muted-foreground',
+  } as const;
+  const dot = {
+    booked: 'bg-success',
+    paid: 'bg-success',
+    unpaid: 'bg-warning',
+    neutral: 'bg-muted-foreground/50',
+  } as const;
   return (
-    <span className={
-      tone === 'booked'
-        ? 'inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-accent-foreground'
-        : 'inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-0.5 text-xs font-medium text-muted-foreground'
-    }>
-      <span aria-hidden className={
-        tone === 'booked' ? 'h-1.5 w-1.5 rounded-full bg-success' : 'h-1.5 w-1.5 rounded-full bg-muted-foreground/50'
-      } />
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${tone === 'neutral' ? '' : styles[tone]} ${tone === 'neutral' ? styles.neutral : ''}`}>
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${dot[tone]}`} />
       {children}
     </span>
   );
 }
-
 function TutorHomeSkeleton() {
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
