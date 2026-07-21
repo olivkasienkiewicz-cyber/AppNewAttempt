@@ -164,14 +164,7 @@ export default function TutorHomePage() {
                       ) : (
                         <div className="mt-1.5 flex items-center gap-1.5">
                           {slot.meetingUrl ? (
-                            
-                              href={slot.meetingUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-4"
-                            >
-                              <Link2 className="h-3 w-3" /> Meeting link
-                            </a>
+                            <MeetingLinkTag url={slot.meetingUrl} />
                           ) : (
                             <span className="text-xs text-muted-foreground">No meeting link yet</span>
                           )}
@@ -194,6 +187,14 @@ export default function TutorHomePage() {
         </div>
       )}
     </main>
+  );
+}
+function MeetingLinkTag({ url }: { url: string }) {
+  const linkProps = { href: url, target: '_blank', rel: 'noopener noreferrer' };
+  return (
+    <a {...linkProps} className="inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-4">
+      <Link2 className="h-3 w-3" /> Meeting link
+    </a>
   );
 }
 function StatusPill({ tone, children }: { tone: 'neutral' | 'booked' | 'paid' | 'unpaid'; children: React.ReactNode }) {
