@@ -1,11 +1,12 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { Bell, MoreVertical } from 'lucide-react';
+import { Bell, MoreVertical, Link2, Pencil } from 'lucide-react';
 import { parse, addMinutes, format } from 'date-fns';
-import { useAppState, type Slot } from '@/lib/store';
+import { toast } from 'sonner';
+import { useAppState, setMeetingUrl, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,6 +43,32 @@ export default function TutorHomePage() {
     }
     return Array.from(map.entries());
   }, [state.slots, currentUser]);
+
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [draftUrl, setDraftUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const startEditing = (slot: Slot) => {
+    setEditingSlotId(slot.id);
+    setDraftUrl(slot.meetingUrl ?? '');
+  };
+  const cancelEditing = () => {
+    setEditingSlotId(null);
+    setDraftUrl('');
+  };
+  const saveMeetingUrl = async (slotId: string) => {
+    setSaving(true);
+    try {
+      await setMeetingUrl(slotId, draftUrl.trim() || null);
+      toast.success('Meeting link saved');
+      cancelEditing();
+    } catch {
+      toast.error("Couldn't save the meeting link — check the URL and try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (!hydrated || !state.dataLoaded) return <TutorHomeSkeleton />;
   if (!currentUser) {
     return (
@@ -100,19 +127,62 @@ export default function TutorHomePage() {
                 {slots.map((slot) => {
                   const end = endTime(slot.startTime, slot.durationMinutes);
                   const booker = slot.bookedByStudentId ? state.users[slot.bookedByStudentId] : null;
+                  const isEditing = editingSlotId === slot.id;
                   return (
-                    <li key={slot.id} className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                      <span className="text-sm font-medium tabular-nums text-foreground">
-                        {slot.startTime}–{end}
-                      </span>
-                      {slot.status === 'free' ? (
-                        <StatusPill tone="neutral">Free</StatusPill>
+                    <li key={slot.id} className="rounded-lg border border-border px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium tabular-nums text-foreground">
+                          {slot.startTime}–{end}
+                        </span>
+                        {slot.status === 'free' ? (
+                          <StatusPill tone="neutral">Free</StatusPill>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <StatusPill tone="booked">Booked · {booker?.name ?? 'student'}</StatusPill>
+                            <StatusPill tone={slot.paymentStatus === 'paid' ? 'paid' : 'unpaid'}>
+                              {slot.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                            </StatusPill>
+                          </div>
+                        )}
+                      </div>
+
+                      {isEditing ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="url"
+                            autoFocus
+                            value={draftUrl}
+                            onChange={(e) => setDraftUrl(e.target.value)}
+                            placeholder="https://meet.google.com/..."
+                            className="h-9 flex-1 rounded-md border border-border bg-background px-2.5 text-sm"
+                          />
+                          <Button size="sm" disabled={saving} onClick={() => void saveMeetingUrl(slot.id)}>
+                            Save
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
+                        </div>
                       ) : (
-                        <div className="flex items-center gap-1.5">
-                          <StatusPill tone="booked">Booked · {booker?.name ?? 'student'}</StatusPill>
-                          <StatusPill tone={slot.paymentStatus === 'paid' ? 'paid' : 'unpaid'}>
-                            {slot.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
-                          </StatusPill>
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          {slot.meetingUrl ? (
+                            
+                              href={slot.meetingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-4"
+                            >
+                              <Link2 className="h-3 w-3" /> Meeting link
+                            </a>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No meeting link yet</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => startEditing(slot)}
+                            aria-label="Edit meeting link"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
                         </div>
                       )}
                     </li>
