@@ -21,6 +21,7 @@ export type Slot = {
   durationMinutes: number;
   status: SlotStatus;
   paymentStatus: PaymentStatus;
+  meetingUrl: string | null;
   bookedByStudentId: string | null;
   bookedAt: string | null;
   createdAt: string;
@@ -211,7 +212,7 @@ export function listSlotsForTutor(
 }
 
 export async function createSlot(
-  input: Omit<Slot, 'id' | 'status' | 'paymentStatus' | 'bookedByStudentId' | 'bookedAt' | 'createdAt'>
+  input: Omit<Slot, 'id' | 'status' | 'paymentStatus' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'createdAt'>
 ): Promise<Slot> {
   const slot = await api<Slot>('/api/slots', {
     method: 'POST',
@@ -255,6 +256,16 @@ export async function bookSlot(
     }
     throw err;
   }
+}
+
+export async function setMeetingUrl(slotId: string, meetingUrl: string | null): Promise<Slot> {
+  const slot = await api<Slot>(`/api/slots/${slotId}/meeting-link`, {
+    method: 'PATCH',
+    body: JSON.stringify({ meetingUrl }),
+  });
+  snapshot = { ...snapshot, slots: { ...snapshot.slots, [slot.id]: slot } };
+  emit();
+  return slot;
 }
 
 export function listNotifications(userId: string): Notification[] {
