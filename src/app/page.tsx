@@ -1,30 +1,11 @@
 import Link from "next/link";
+import { SiteHeader } from "@/components/marketing/site-header";
+import { SiteFooter } from "@/components/marketing/site-footer";
 
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#F7F5F0] text-[#12202B]">
-      {/* Nav */}
-      <header className="border-b border-[#0E2A47]/10">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <span className="font-[family-name:var(--font-instrument-serif)] text-2xl tracking-tight text-[#0E2A47]">
-            Studilly
-          </span>
-          <nav className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-full bg-[#16B8A7] px-5 py-2 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
-            >
-              Get started
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader />
 
       {/* Hero */}
       <section className="bg-[#0E2A47] text-white">
@@ -163,9 +144,7 @@ export default function HomePage() {
         </Link>
       </section>
 
-      <footer className="border-t border-[#0E2A47]/10 py-8 text-center text-xs text-[#0E2A47]/50">
-        © {new Date().getFullYear()} Studilly
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
