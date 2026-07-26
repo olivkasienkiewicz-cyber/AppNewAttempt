@@ -9,6 +9,7 @@ const inter = Inter({
   variable: '--font-inter',
   display: 'swap',
 });
+
 const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
   weight: '400',
@@ -33,7 +34,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} ${instrumentSerif.variable}`}>
-      <body className="min-h-screen bg-background text-foreground antialiased">
+      <body className="min-h-screen bg-background text-foreground antialiased font-[family-name:var(--font-inter)]">
         <Providers>
           {children}
           <Toaster richColors closeButton position="top-right" />
