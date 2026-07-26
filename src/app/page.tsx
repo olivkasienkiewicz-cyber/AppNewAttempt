@@ -6,7 +6,7 @@ export default function HomePage() {
       {/* Nav */}
       <header className="border-b border-[#0E2A47]/10">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <span className="font-['Instrument_Serif'] text-2xl tracking-tight text-[#0E2A47]">
+          <span className="font-[family-name:var(--font-instrument-serif)] text-2xl tracking-tight text-[#0E2A47]">
             Studilly
           </span>
           <nav className="flex items-center gap-3">
@@ -30,7 +30,7 @@ export default function HomePage() {
       <section className="bg-[#0E2A47] text-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[1.2fr_0.8fr] md:items-center">
           <div>
-            <h1 className="font-['Instrument_Serif'] text-5xl leading-[1.05] md:text-6xl">
+            <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl leading-[1.05] md:text-6xl">
               IB tutoring that actually fits your syllabus.
             </h1>
             <p className="mt-6 max-w-lg text-lg text-white/80">
@@ -61,7 +61,7 @@ export default function HomePage() {
                 Session rate
               </p>
               <div className="my-3 border-t border-dashed border-[#0E2A47]/20" />
-              <p className="font-['Instrument_Serif'] text-4xl text-[#0E2A47]">
+              <p className="font-[family-name:var(--font-instrument-serif)] text-4xl text-[#0E2A47]">
                 230 PLN
               </p>
               <p className="text-sm text-[#0E2A47]/70">per hour, any subject</p>
@@ -76,7 +76,7 @@ export default function HomePage() {
 
       {/* How it works */}
       <section className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="font-['Instrument_Serif'] text-3xl text-[#0E2A47]">
+        <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
           How it works
         </h2>
         <div className="mt-10 grid gap-8 md:grid-cols-4">
@@ -103,7 +103,7 @@ export default function HomePage() {
             },
           ].map((s) => (
             <div key={s.step}>
-              <span className="font-['Instrument_Serif'] text-3xl text-[#16B8A7]">
+              <span className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#16B8A7]">
                 {s.step}
               </span>
               <h3 className="mt-2 font-semibold text-[#0E2A47]">{s.title}</h3>
@@ -116,7 +116,7 @@ export default function HomePage() {
       {/* Subject coverage */}
       <section className="bg-white py-20">
         <div className="mx-auto max-w-6xl px-6">
-          <h2 className="font-['Instrument_Serif'] text-3xl text-[#0E2A47]">
+          <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
             Every IB group, both levels
           </h2>
           <p className="mt-2 text-[#12202B]/70">
@@ -152,7 +152,7 @@ export default function HomePage() {
 
       {/* Closing CTA */}
       <section className="mx-auto max-w-6xl px-6 py-20 text-center">
-        <h2 className="font-['Instrument_Serif'] text-3xl text-[#0E2A47]">
+        <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
           Your next session is a few taps away.
         </h2>
         <Link
