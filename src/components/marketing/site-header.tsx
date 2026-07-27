@@ -1,14 +1,18 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export function SiteHeader() {
   return (
     <header className="border-b border-[#0E2A47]/10 bg-[#F7F5F0]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Link
-          href="/"
-          className="font-[family-name:var(--font-instrument-serif)] text-2xl tracking-tight text-[#0E2A47]"
-        >
-          Studilly
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/brand/studilly-lockup.svg"
+            alt="Studilly"
+            width={140}
+            height={32}
+            priority
+          />
         </Link>
         <nav className="flex items-center gap-6">
           <Link
