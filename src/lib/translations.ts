@@ -18,6 +18,9 @@
     subjectsSubheading: string;
     hlSlBadge: string;
     groups: { group: string; label: string }[];
+    applicationSupportHeading: string;
+    applicationSupportSubheading: string;
+    applicationServices: { title: string; body: string }[];
     closingHeading: string;
   };
   about: {
@@ -84,6 +87,27 @@ export const translations: Record<"en" | "pl", Translations> = {
         { group: "Group 5", label: "Mathematics" },
         { group: "Group 6", label: "The Arts" },
       ],
+      applicationSupportHeading: "Foreign university application support",
+      applicationSupportSubheading:
+        "Beyond the IB — help with everything it takes to get in.",
+      applicationServices: [
+        {
+          title: "Exam prep",
+          body: "Structured prep for SAT, ACT, and other entrance exams, tailored to your target universities.",
+        },
+        {
+          title: "Personal statement writing",
+          body: "One-on-one guidance to draft, refine, and polish a personal statement that actually sounds like you.",
+        },
+        {
+          title: "University & course choice",
+          body: "Advice on shortlisting universities and courses that fit your grades, budget, and goals.",
+        },
+        {
+          title: "Ongoing application support",
+          body: "From deadlines to documents, get support through the entire application process, start to finish.",
+        },
+      ],
       closingHeading: "Your next session is a few taps away.",
     },
     about: {
@@ -141,12 +165,33 @@ export const translations: Record<"en" | "pl", Translations> = {
       subjectsSubheading: "HL i SL, we wszystkich sześciu grupach przedmiotowych.",
       hlSlBadge: "HL · SL",
       groups: [
-        { group: "Grupa 1", label: "Nauka języka i literatury" },
+        { group: "Grupa 1", label: "Studia języka i literatury" },
         { group: "Grupa 2", label: "Nauka języków obcych" },
         { group: "Grupa 3", label: "Jednostka i społeczeństwo" },
         { group: "Grupa 4", label: "Nauki ścisłe i przyrodnicze" },
         { group: "Grupa 5", label: "Matematyka" },
         { group: "Grupa 6", label: "Sztuka" },
+      ],
+      applicationSupportHeading: "Wsparcie w aplikacji na zagraniczne uczelnie",
+      applicationSupportSubheading:
+        "Poza IB — pomoc we wszystkim, czego potrzebujesz, by dostać się na wymarzoną uczelnię.",
+      applicationServices: [
+        {
+          title: "Przygotowanie do egzaminów",
+          body: "Uporządkowane przygotowanie do SAT, ACT i innych egzaminów wstępnych, dopasowane do wybranych uczelni.",
+        },
+        {
+          title: "Pisanie listu motywacyjnego",
+          body: "Indywidualne wsparcie w napisaniu i dopracowaniu listu motywacyjnego, który naprawdę brzmi jak Ty.",
+        },
+        {
+          title: "Wybór uczelni i kierunku",
+          body: "Doradztwo w wyborze uczelni i kierunków dopasowanych do Twoich ocen, budżetu i celów.",
+        },
+        {
+          title: "Wsparcie w całym procesie aplikacji",
+          body: "Od terminów po dokumenty — wsparcie na każdym etapie procesu aplikacyjnego, od początku do końca.",
+        },
       ],
       closingHeading: "Twoja kolejna sesja jest o kilka kliknięć.",
     },
