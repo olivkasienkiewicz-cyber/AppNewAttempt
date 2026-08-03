@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { ADMIN_EMAIL } from '@/lib/payment';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(
   req: Request,
   context: { params: Promise<{ id: string }> }
