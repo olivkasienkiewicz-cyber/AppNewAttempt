@@ -34,6 +34,12 @@ export function SiteHeader() {
             {t.nav.tutors}
           </Link>
           <Link
+            href="/opinions"
+            className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
+          >
+            {t.nav.opinions}
+          </Link>
+          <Link
             href="/login"
             className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
           >
