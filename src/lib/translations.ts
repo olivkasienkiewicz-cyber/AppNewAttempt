@@ -1,4 +1,4 @@
-export type Translations = {
+ export type Translations = {
   nav: {
     home: string;
     about: string;
@@ -141,7 +141,7 @@ export const translations: Record<"en" | "pl", Translations> = {
       subjectsSubheading: "HL i SL, we wszystkich sześciu grupach przedmiotowych.",
       hlSlBadge: "HL · SL",
       groups: [
-        { group: "Grupa 1", label: "Studia języka i literatury" },
+        { group: "Grupa 1", label: "Nauka języka i literatury" },
         { group: "Grupa 2", label: "Nauka języków obcych" },
         { group: "Grupa 3", label: "Jednostka i społeczeństwo" },
         { group: "Grupa 4", label: "Nauki ścisłe i przyrodnicze" },
