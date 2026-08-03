@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import { LanguageToggle } from "../LanguageToggle";
+import { useLanguage } from "@/context/LanguageContext";
 
 export function SiteHeader() {
+  const { t } = useLanguage();
+
   return (
     <header className="border-b border-[#0E2A47]/10 bg-[#F7F5F0]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
@@ -20,19 +25,19 @@ export function SiteHeader() {
             href="/about"
             className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
           >
-            About us
+            {t.nav.about}
           </Link>
           <Link
             href="/tutors"
             className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
           >
-            Our tutors
+            {t.nav.tutors}
           </Link>
           <Link
             href="/login"
             className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
           >
-            Log in
+            {t.nav.login}
           </Link>
           <Link
             href="/login"
