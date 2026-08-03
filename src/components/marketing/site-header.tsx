@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { LanguageToggle } from "./LanguageToggle";
+import { LanguageToggle } from "../LanguageToggle";
 
 export function SiteHeader() {
   return (
