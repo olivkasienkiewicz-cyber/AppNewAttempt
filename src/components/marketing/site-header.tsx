@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { LanguageToggle } from "./LanguageToggle";
 
 export function SiteHeader() {
   return (
@@ -29,7 +30,7 @@ export function SiteHeader() {
           </Link>
           <Link
             href="/login"
-            className="px-4 py-2 text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
+            className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
           >
             Log in
           </Link>
@@ -39,6 +40,7 @@ export function SiteHeader() {
           >
             Get started
           </Link>
+          <LanguageToggle />
         </nav>
       </div>
     </header>
