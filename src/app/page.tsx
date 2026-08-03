@@ -1,4 +1,4 @@
-        "use client";
+    "use client";
 
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
@@ -99,6 +99,27 @@ export default function HomePage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* University application support */}
+      <section className="mx-auto max-w-6xl px-6 py-20">
+        <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
+          {t.home.applicationSupportHeading}
+        </h2>
+        <p className="mt-2 text-[#12202B]/70">
+          {t.home.applicationSupportSubheading}
+        </p>
+        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          {t.home.applicationServices.map((service) => (
+            <div
+              key={service.title}
+              className="rounded-md border border-[#0E2A47]/10 bg-white p-6"
+            >
+              <h3 className="font-semibold text-[#0E2A47]">{service.title}</h3>
+              <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
+            </div>
+          ))}
         </div>
       </section>
 
