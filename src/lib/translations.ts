@@ -1,4 +1,26 @@
-export const translations = {
+export type Translations = {
+  nav: {
+    home: string;
+    about: string;
+    tutors: string;
+    login: string;
+  };
+  home: {
+    heroTitle: string;
+    heroSubtitle: string;
+    cta: string;
+  };
+  about: {
+    title: string;
+    body: string;
+  };
+  tutors: {
+    title: string;
+    subjectLabel: string;
+  };
+};
+
+export const translations: Record<"en" | "pl", Translations> = {
   en: {
     nav: {
       home: "Home",
@@ -41,7 +63,7 @@ export const translations = {
       subjectLabel: "Przedmiot",
     },
   },
-} as const;
+};
 
 export type Locale = keyof typeof translations;
-export type TranslationKeys = typeof translations.en;
+export type TranslationKeys = Translations;
