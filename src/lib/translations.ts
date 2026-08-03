@@ -1,8 +1,9 @@
- export type Translations = {
+           export type Translations = {
   nav: {
     home: string;
     about: string;
     tutors: string;
+    opinions: string;
     login: string;
   };
   home: {
@@ -35,6 +36,10 @@
     intro: string;
     comingSoon: string;
   };
+  opinions: {
+    title: string;
+    subtitle: string;
+  };
 };
 
 export const translations: Record<"en" | "pl", Translations> = {
@@ -43,6 +48,7 @@ export const translations: Record<"en" | "pl", Translations> = {
       home: "Home",
       about: "About",
       tutors: "Tutors",
+      opinions: "Opinions",
       login: "Log in",
     },
     home: {
@@ -122,12 +128,17 @@ export const translations: Record<"en" | "pl", Translations> = {
       intro: "Every tutor on Studilly has been through the IB themselves.",
       comingSoon: "Tutor profiles are coming soon.",
     },
+    opinions: {
+      title: "What students say",
+      subtitle: "Real feedback from students we've tutored through their IB.",
+    },
   },
   pl: {
     nav: {
       home: "Strona główna",
       about: "O nas",
       tutors: "Korepetytorzy",
+      opinions: "Opinie",
       login: "Zaloguj się",
     },
     home: {
@@ -206,6 +217,10 @@ export const translations: Record<"en" | "pl", Translations> = {
       subjectLabel: "Przedmiot",
       intro: "Każdy korepetytor w Studilly sam przeszedł przez IB.",
       comingSoon: "Profile korepetytorów pojawią się wkrótce.",
+    },
+    opinions: {
+      title: "Co mówią uczniowie",
+      subtitle: "Prawdziwe opinie uczniów, których przygotowaliśmy do matury IB.",
     },
   },
 };
