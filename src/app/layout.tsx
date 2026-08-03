@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Instrument_Serif } from 'next/font/google';
 import { Toaster } from '@/components/ui/sonner';
 import { Providers } from '@/components/providers';
+import { LanguageProvider } from '@/context/LanguageContext';
 import './globals.css';
 
 const inter = Inter({
@@ -36,8 +37,10 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} ${instrumentSerif.variable}`}>
       <body className="min-h-screen bg-background text-foreground antialiased font-[family-name:var(--font-inter)]">
         <Providers>
-          {children}
-          <Toaster richColors closeButton position="top-right" />
+          <LanguageProvider>
+            {children}
+            <Toaster richColors closeButton position="top-right" />
+          </LanguageProvider>
         </Providers>
       </body>
     </html>
