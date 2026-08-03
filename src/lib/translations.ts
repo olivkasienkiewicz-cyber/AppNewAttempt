@@ -9,6 +9,16 @@ export type Translations = {
     heroTitle: string;
     heroSubtitle: string;
     cta: string;
+    sessionRateLabel: string;
+    sessionRateUnit: string;
+    sessionRateNote: string;
+    howItWorksHeading: string;
+    steps: { step: string; title: string; body: string }[];
+    subjectsHeading: string;
+    subjectsSubheading: string;
+    hlSlBadge: string;
+    groups: { group: string; label: string }[];
+    closingHeading: string;
   };
   about: {
     title: string;
@@ -19,6 +29,8 @@ export type Translations = {
   tutors: {
     title: string;
     subjectLabel: string;
+    intro: string;
+    comingSoon: string;
   };
 };
 
@@ -31,9 +43,48 @@ export const translations: Record<"en" | "pl", Translations> = {
       login: "Log in",
     },
     home: {
-      heroTitle: "IB tutoring that actually works",
-      heroSubtitle: "Connect with expert IB tutors",
-      cta: "Find a tutor",
+      heroTitle: "IB tutoring that actually fits your syllabus.",
+      heroSubtitle:
+        "Book real IB tutors — by subject, by level, by the hour. No packages, no sales calls. Pick a slot, transfer the fee, get your meeting link.",
+      cta: "Get started",
+      sessionRateLabel: "Session rate",
+      sessionRateUnit: "per hour, any subject",
+      sessionRateNote: "Confirmed by bank transfer · Meeting link on booking",
+      howItWorksHeading: "How it works",
+      steps: [
+        {
+          step: "1",
+          title: "Browse",
+          body: "Filter tutors by IB subject, HL or SL, and open slots.",
+        },
+        {
+          step: "2",
+          title: "Book",
+          body: "Reserve a time. It's held for you while payment is confirmed.",
+        },
+        {
+          step: "3",
+          title: "Bank transfer",
+          body: "Pay 230 PLN by bank transfer. We confirm it manually, fast.",
+        },
+        {
+          step: "4",
+          title: "Meeting link",
+          body: "Once confirmed, your tutor's meeting link lands in your inbox.",
+        },
+      ],
+      subjectsHeading: "Every IB group, both levels",
+      subjectsSubheading: "HL and SL, across all six subject groups.",
+      hlSlBadge: "HL · SL",
+      groups: [
+        { group: "Group 1", label: "Studies in Language & Literature" },
+        { group: "Group 2", label: "Language Acquisition" },
+        { group: "Group 3", label: "Individuals & Societies" },
+        { group: "Group 4", label: "Sciences" },
+        { group: "Group 5", label: "Mathematics" },
+        { group: "Group 6", label: "The Arts" },
+      ],
+      closingHeading: "Your next session is a few taps away.",
     },
     about: {
       title: "About Studilly",
@@ -44,6 +95,8 @@ export const translations: Record<"en" | "pl", Translations> = {
     tutors: {
       title: "Our Tutors",
       subjectLabel: "Subject",
+      intro: "Every tutor on Studilly has been through the IB themselves.",
+      comingSoon: "Tutor profiles are coming soon.",
     },
   },
   pl: {
@@ -54,9 +107,48 @@ export const translations: Record<"en" | "pl", Translations> = {
       login: "Zaloguj się",
     },
     home: {
-      heroTitle: "Korepetycje IB, które naprawdę działają",
-      heroSubtitle: "Połącz się z doświadczonymi korepetytorami IB",
-      cta: "Znajdź korepetytora",
+      heroTitle: "Korepetycje IB, które naprawdę pasują do Twojego programu.",
+      heroSubtitle:
+        "Rezerwuj prawdziwych korepetytorów IB — według przedmiotu, poziomu i godziny. Bez pakietów, bez rozmów sprzedażowych. Wybierz termin, przelej opłatę, otrzymaj link do spotkania.",
+      cta: "Zacznij teraz",
+      sessionRateLabel: "Stawka za sesję",
+      sessionRateUnit: "za godzinę, dowolny przedmiot",
+      sessionRateNote: "Potwierdzane przelewem bankowym · Link do spotkania po rezerwacji",
+      howItWorksHeading: "Jak to działa",
+      steps: [
+        {
+          step: "1",
+          title: "Przeglądaj",
+          body: "Filtruj korepetytorów według przedmiotu IB, poziomu HL lub SL i dostępnych terminów.",
+        },
+        {
+          step: "2",
+          title: "Zarezerwuj",
+          body: "Zarezerwuj termin. Jest dla Ciebie zablokowany do czasu potwierdzenia płatności.",
+        },
+        {
+          step: "3",
+          title: "Przelew bankowy",
+          body: "Zapłać 230 PLN przelewem bankowym. Potwierdzamy go ręcznie i szybko.",
+        },
+        {
+          step: "4",
+          title: "Link do spotkania",
+          body: "Po potwierdzeniu link do spotkania z korepetytorem trafia na Twoją skrzynkę.",
+        },
+      ],
+      subjectsHeading: "Każda grupa IB, oba poziomy",
+      subjectsSubheading: "HL i SL, we wszystkich sześciu grupach przedmiotowych.",
+      hlSlBadge: "HL · SL",
+      groups: [
+        { group: "Grupa 1", label: "Studia języka i literatury" },
+        { group: "Grupa 2", label: "Nauka języków obcych" },
+        { group: "Grupa 3", label: "Jednostka i społeczeństwo" },
+        { group: "Grupa 4", label: "Nauki ścisłe i przyrodnicze" },
+        { group: "Grupa 5", label: "Matematyka" },
+        { group: "Grupa 6", label: "Sztuka" },
+      ],
+      closingHeading: "Twoja kolejna sesja jest o kilka kliknięć.",
     },
     about: {
       title: "O Studilly",
@@ -67,6 +159,8 @@ export const translations: Record<"en" | "pl", Translations> = {
     tutors: {
       title: "Nasi Korepetytorzy",
       subjectLabel: "Przedmiot",
+      intro: "Każdy korepetytor w Studilly sam przeszedł przez IB.",
+      comingSoon: "Profile korepetytorów pojawią się wkrótce.",
     },
   },
 };
