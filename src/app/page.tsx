@@ -1,8 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { useLanguage } from "@/context/LanguageContext";
 
 export default function HomePage() {
+  const { t } = useLanguage();
+
   return (
     <main className="min-h-screen bg-[#F7F5F0] text-[#12202B]">
       <SiteHeader />
@@ -12,25 +17,23 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[1.2fr_0.8fr] md:items-center">
           <div>
             <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl leading-[1.05] md:text-6xl">
-              IB tutoring that actually fits your syllabus.
+              {t.home.heroTitle}
             </h1>
             <p className="mt-6 max-w-lg text-lg text-white/80">
-              Book real IB tutors — by subject, by level, by the hour.
-              No packages, no sales calls. Pick a slot, transfer the fee,
-              get your meeting link.
+              {t.home.heroSubtitle}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 href="/login"
                 className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
               >
-                Get started
+                {t.home.cta}
               </Link>
               <Link
                 href="/login"
                 className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:border-white/60 transition-colors"
               >
-                Log in
+                {t.nav.login}
               </Link>
             </div>
           </div>
@@ -140,7 +143,7 @@ export default function HomePage() {
           href="/login"
           className="mt-6 inline-block rounded-full bg-[#16B8A7] px-8 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
         >
-          Get started
+          {t.home.cta}
         </Link>
       </section>
 
