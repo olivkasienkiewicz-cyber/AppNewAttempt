@@ -157,7 +157,7 @@ export default function StudentBrowsePage() {
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
             <div className="grid grid-cols-2 gap-3">
-              <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+              <Select value={subjectFilter} onValueChange={(value) => setSubjectFilter(value ?? 'all')}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={t.browse.subjectLabel} />
                 </SelectTrigger>
@@ -168,7 +168,7 @@ export default function StudentBrowsePage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={levelFilter} onValueChange={setLevelFilter}>
+              <Select value={levelFilter} onValueChange={(value) => setLevelFilter(value ?? 'all')}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder={t.browse.levelLabel} />
                 </SelectTrigger>
