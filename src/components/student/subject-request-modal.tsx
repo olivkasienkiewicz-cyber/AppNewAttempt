@@ -98,7 +98,7 @@ export function SubjectRequestModal({ open, onOpenChange }: Props) {
                 <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {t.subjectRequest.levelLabel}
                 </span>
-                <Select value={level} onValueChange={setLevel}>
+                <Select value={level} onValueChange={(value) => setLevel(value ?? undefined)}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder={t.subjectRequest.levelPlaceholder} />
                   </SelectTrigger>
