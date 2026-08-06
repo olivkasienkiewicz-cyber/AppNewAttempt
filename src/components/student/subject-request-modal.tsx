@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useLanguage } from '@/components/providers';
+import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -149,4 +149,3 @@ export function SubjectRequestModal({ open, onOpenChange }: Props) {
     </div>
   );
 }
-
