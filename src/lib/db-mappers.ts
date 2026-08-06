@@ -7,6 +7,8 @@ export function rowToUser(row: Record<string, unknown>): User {
     id: row.id as string,
     name: row.name as string,
     role: row.role as User['role'],
+    subject: (row.subject as string | null) ?? null,
+    level: (row.level as string | null) ?? null,
     createdAt: new Date(row.created_at as string).toISOString(),
   };
 }
