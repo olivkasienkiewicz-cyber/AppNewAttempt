@@ -40,6 +40,34 @@
     title: string;
     subtitle: string;
   };
+  browse: {
+    searchPlaceholder: string;
+    subjectLabel: string;
+    subjectAll: string;
+    levelLabel: string;
+    levelAll: string;
+    noMatchesTitle: string;
+    noMatchesBody: string;
+    requestSubjectLink: string;
+  };
+  subjectRequest: {
+    emptyStatePrompt: string;
+    modalTitle: string;
+    modalIntro: string;
+    subjectLabel: string;
+    subjectPlaceholder: string;
+    levelLabel: string;
+    levelPlaceholder: string;
+    noteLabel: string;
+    notePlaceholder: string;
+    submit: string;
+    cancel: string;
+    successTitle: string;
+    successBody: string;
+    duplicateError: string;
+    genericError: string;
+    close: string;
+  };
 };
 
 export const translations: Record<"en" | "pl", Translations> = {
@@ -132,6 +160,34 @@ export const translations: Record<"en" | "pl", Translations> = {
       title: "What students say",
       subtitle: "Real feedback from students we've tutored through their IB.",
     },
+    browse: {
+      searchPlaceholder: "Search by tutor name",
+      subjectLabel: "Subject",
+      subjectAll: "All subjects",
+      levelLabel: "Level",
+      levelAll: "All levels",
+      noMatchesTitle: "No tutors match your filters",
+      noMatchesBody: "Try a different search, subject, or level.",
+      requestSubjectLink: "Can't find your subject? Request it",
+    },
+    subjectRequest: {
+      emptyStatePrompt: "Can't find your subject? Let us know and we'll find a tutor.",
+      modalTitle: "Request a subject",
+      modalIntro: "Tell us what you're looking for and we'll reach out to tutors who can teach it.",
+      subjectLabel: "Subject",
+      subjectPlaceholder: "e.g. Psychology",
+      levelLabel: "Level (optional)",
+      levelPlaceholder: "Select a level",
+      noteLabel: "Anything else? (optional)",
+      notePlaceholder: "e.g. Looking for someone experienced with the IA",
+      submit: "Send request",
+      cancel: "Cancel",
+      successTitle: "Request sent",
+      successBody: "Thanks — we'll be in touch once we've found a tutor for this subject.",
+      duplicateError: "You've already requested this subject. We'll be in touch once we've found a tutor.",
+      genericError: "Something went wrong. Please try again.",
+      close: "Close",
+    },
   },
   pl: {
     nav: {
@@ -189,41 +245,4 @@ export const translations: Record<"en" | "pl", Translations> = {
       applicationServices: [
         {
           title: "Przygotowanie do egzaminów",
-          body: "Uporządkowane przygotowanie do SAT, ACT i innych egzaminów wstępnych, dopasowane do wybranych uczelni.",
-        },
-        {
-          title: "Pisanie listu motywacyjnego",
-          body: "Indywidualne wsparcie w napisaniu i dopracowaniu listu motywacyjnego, który naprawdę brzmi jak Ty.",
-        },
-        {
-          title: "Wybór uczelni i kierunku",
-          body: "Doradztwo w wyborze uczelni i kierunków dopasowanych do Twoich ocen, budżetu i celów.",
-        },
-        {
-          title: "Wsparcie w całym procesie aplikacji",
-          body: "Od terminów po dokumenty — wsparcie na każdym etapie procesu aplikacyjnego, od początku do końca.",
-        },
-      ],
-      closingHeading: "Twoja kolejna sesja jest o kilka kliknięć.",
-    },
-    about: {
-      title: "O Studilly",
-      body: "Studilly to platforma korepetycji stworzona, by pomóc uczniom osiągnąć cele edukacyjne i przejść przez cały proces aplikacji na zagraniczne uczelnie. Studilly łączy uczniów z najlepszymi korepetytorami — absolwentami i studentami czołowych światowych uczelni — dzięki systemowi rezerwacji, który naprawdę działa. Koniec z czekaniem tygodniami na termin lekcji czy liczeniem na odpowiedź — z Studilly zarezerwowanie zajęć zajmuje kilka sekund.",
-      founderHeading: "Poznaj naszą założycielkę",
-      founderBio: "Olivia, absolwentka IB z własnym doświadczeniem w korepetycjach, studiowała International Economics and Management na Uniwersytecie Bocconiego, z wymianą Erasmus w Copenhagen Business School. To jej zaangażowanie i pasja do edukacji międzynarodowej dały początek Studilly — z jednym celem: uczynić korepetycje prostszymi, mniej frustrującymi i naprawdę nastawionymi na sukces ucznia.",
-    },
-    tutors: {
-      title: "Nasi Korepetytorzy",
-      subjectLabel: "Przedmiot",
-      intro: "Każdy korepetytor w Studilly sam przeszedł przez IB.",
-      comingSoon: "Profile korepetytorów pojawią się wkrótce.",
-    },
-    opinions: {
-      title: "Co mówią uczniowie",
-      subtitle: "Prawdziwe opinie uczniów, których przygotowaliśmy do matury IB.",
-    },
-  },
-};
-
-export type Locale = keyof typeof translations;
-export type TranslationKeys = Translations;
+          body: "Uporządkowane przygotowanie do S
