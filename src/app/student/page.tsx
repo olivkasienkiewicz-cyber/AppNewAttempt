@@ -8,11 +8,13 @@ import { toast } from 'sonner';
 import {
   bookSlot, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
+import { useLanguage } from '@/components/providers';
 import { Button } from '@/components/ui/button';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { BookingConfirmModal } from '@/components/student/booking-confirm-modal';
+import { SubjectRequestModal } from '@/components/student/subject-request-modal';
 import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
 
@@ -34,16 +36,43 @@ function formatWeekday(dateStr: string): string {
 export default function StudentBrowsePage() {
   const state = useAppState();
   const router = useRouter();
+  const { t } = useLanguage();
 
   const tutors = useMemo<User[]>(() =>
     Object.values(state.users).filter((u) => u.role === 'tutor').sort((a, b) => a.name.localeCompare(b.name)),
     [state.users]);
 
+  // --- Part A: filters ---
+  const [searchText, setSearchText] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [levelFilter, setLevelFilter] = useState('all');
+  const [requestModalOpen, setRequestModalOpen] = useState(false);
+
+  const subjectOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const tutor of tutors) {
+      if (tutor.subject) set.add(tutor.subject);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [tutors]);
+
+  const filteredTutors = useMemo(() => {
+    const q = searchText.trim().toLowerCase();
+    return tutors.filter((tutor) => {
+      if (q && !tutor.name.toLowerCase().includes(q)) return false;
+      if (subjectFilter !== 'all' && tutor.subject !== subjectFilter) return false;
+      if (levelFilter !== 'all' && !(tutor.level ?? '').toUpperCase().includes(levelFilter)) return false;
+      return true;
+    });
+  }, [tutors, searchText, subjectFilter, levelFilter]);
+
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   useEffect(() => {
-    if (tutors.length === 0) { setSelectedTutorId(null); return; }
-    if (!selectedTutorId || !tutors.some((t) => t.id === selectedTutorId)) setSelectedTutorId(tutors[0].id);
-  }, [tutors, selectedTutorId]);
+    if (filteredTutors.length === 0) { setSelectedTutorId(null); return; }
+    if (!selectedTutorId || !filteredTutors.some((t) => t.id === selectedTutorId)) {
+      setSelectedTutorId(filteredTutors[0].id);
+    }
+  }, [filteredTutors, selectedTutorId]);
 
   const freeSlotsForTutor = useMemo<Slot[]>(() => {
     if (!selectedTutorId) return [];
@@ -119,57 +148,113 @@ export default function StudentBrowsePage() {
         <EmptyState>No tutors have joined yet. Switch to a tutor account to publish slots.</EmptyState>
       ) : (
         <>
-          <div className="mb-8">
-            {tutors.length === 1 ? (
-              <p className="text-sm">
-                <span className="text-muted-foreground">Tutor · </span>
-                <span className="font-medium">{tutors[0].name}</span>
-              </p>
-            ) : (
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Tutor</span>
-                <Select value={selectedTutorId ?? undefined} onValueChange={setSelectedTutorId}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose a tutor">{selectedTutor?.name ?? 'Choose a tutor'}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tutors.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
-                  </SelectContent>
-                </Select>
-              </label>
-            )}
+          <div className="mb-6 space-y-3">
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder={t.browse.searchPlaceholder}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <Select value={subjectFilter} onValueChange={setSubjectFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t.browse.subjectLabel} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t.browse.subjectAll}</SelectItem>
+                  {subjectOptions.map((s) => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={levelFilter} onValueChange={setLevelFilter}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder={t.browse.levelLabel} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{t.browse.levelAll}</SelectItem>
+                  <SelectItem value="HL">HL</SelectItem>
+                  <SelectItem value="SL">SL</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRequestModalOpen(true)}
+              className="text-sm font-medium text-[#16B8A7] hover:underline"
+            >
+              {t.browse.requestSubjectLink}
+            </button>
           </div>
 
-          {selectedDay && (
-            <div className="mb-8 flex items-center justify-between border-y border-border py-5">
-              <Button variant="ghost" size="icon" aria-label="Previous day with free slots"
-                disabled={!canGoPrev} onClick={goPrev} className="h-11 w-11">
-                <ChevronLeft className="h-5 w-5" aria-hidden />
-              </Button>
-              <div className="text-center">
-                <div className="font-display text-4xl text-foreground tabular-nums">{formatDDMM(selectedDay)}</div>
-                <div className="mt-0.5 text-xs uppercase tracking-wider text-muted-foreground">{formatWeekday(selectedDay)}</div>
-              </div>
-              <Button variant="ghost" size="icon" aria-label="Next day with free slots"
-                disabled={!canGoNext} onClick={goNext} className="h-11 w-11">
-                <ChevronRight className="h-5 w-5" aria-hidden />
-              </Button>
-            </div>
-          )}
-
-          {selectedDay && slotsOnDay.length === 0 ? (
-            <EmptyState>No free slots on this day.</EmptyState>
-          ) : !selectedDay ? (
-            <EmptyState>No upcoming slots from this tutor.</EmptyState>
+          {filteredTutors.length === 0 ? (
+            <EmptyState>
+              <p>{t.browse.noMatchesTitle}</p>
+              <p className="mt-1 text-sm">{t.browse.noMatchesBody}</p>
+              <button
+                type="button"
+                onClick={() => setRequestModalOpen(true)}
+                className="mt-3 text-sm font-medium text-[#16B8A7] hover:underline"
+              >
+                {t.subjectRequest.emptyStatePrompt}
+              </button>
+            </EmptyState>
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
-              {slotsOnDay.map((slot) => (
-                <button key={slot.id} type="button" onClick={() => setPendingSlot(slot)}
-                  className="flex h-16 items-center justify-center rounded-lg border border-border bg-card text-base font-medium tabular-nums transition-colors hover:border-foreground/30 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  {slot.startTime}
-                </button>
-              ))}
-            </div>
+            <>
+              <div className="mb-8">
+                {filteredTutors.length === 1 ? (
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Tutor · </span>
+                    <span className="font-medium">{filteredTutors[0].name}</span>
+                  </p>
+                ) : (
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-muted-foreground">Tutor</span>
+                    <Select value={selectedTutorId ?? undefined} onValueChange={setSelectedTutorId}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Choose a tutor">{selectedTutor?.name ?? 'Choose a tutor'}</SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredTutors.map((t) => (<SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                )}
+              </div>
+
+              {selectedDay && (
+                <div className="mb-8 flex items-center justify-between border-y border-border py-5">
+                  <Button variant="ghost" size="icon" aria-label="Previous day with free slots"
+                    disabled={!canGoPrev} onClick={goPrev} className="h-11 w-11">
+                    <ChevronLeft className="h-5 w-5" aria-hidden />
+                  </Button>
+                  <div className="text-center">
+                    <div className="font-display text-4xl text-foreground tabular-nums">{formatDDMM(selectedDay)}</div>
+                    <div className="mt-0.5 text-xs uppercase tracking-wider text-muted-foreground">{formatWeekday(selectedDay)}</div>
+                  </div>
+                  <Button variant="ghost" size="icon" aria-label="Next day with free slots"
+                    disabled={!canGoNext} onClick={goNext} className="h-11 w-11">
+                    <ChevronRight className="h-5 w-5" aria-hidden />
+                  </Button>
+                </div>
+              )}
+
+              {selectedDay && slotsOnDay.length === 0 ? (
+                <EmptyState>No free slots on this day.</EmptyState>
+              ) : !selectedDay ? (
+                <EmptyState>No upcoming slots from this tutor.</EmptyState>
+              ) : (
+                <div className="grid grid-cols-2 gap-2.5 md:grid-cols-3">
+                  {slotsOnDay.map((slot) => (
+                    <button key={slot.id} type="button" onClick={() => setPendingSlot(slot)}
+                      className="flex h-16 items-center justify-center rounded-lg border border-border bg-card text-base font-medium tabular-nums transition-colors hover:border-foreground/30 hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      {slot.startTime}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -180,6 +265,11 @@ export default function StudentBrowsePage() {
         tutorName={selectedTutor?.name ?? ''}
         slot={pendingSlot}
         onConfirm={handleConfirm}
+      />
+
+      <SubjectRequestModal
+        open={requestModalOpen}
+        onOpenChange={setRequestModalOpen}
       />
 
       {paymentInfo && (
