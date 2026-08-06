@@ -10,6 +10,8 @@ export type User = {
   id: string;
   name: string;
   role: Role;
+  subject: string | null;
+  level: string | null;
   createdAt: string;
 };
 
