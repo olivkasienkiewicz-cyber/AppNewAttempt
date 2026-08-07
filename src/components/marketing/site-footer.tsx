@@ -23,7 +23,7 @@ export function SiteFooter() {
             </h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a
+                
                   href="tel:+48666233344"
                   className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors"
                 >
@@ -32,7 +32,7 @@ export function SiteFooter() {
                 </a>
               </li>
               <li>
-                <a
+                
                   href="mailto:olivkasienkiewicz@gmail.com"
                   className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors"
                 >
@@ -53,6 +53,9 @@ export function SiteFooter() {
           <div className="mt-4 flex gap-4">
             <Link href="/regulamin" className="hover:text-[#16B8A7] transition-colors underline">
               Regulamin
+            </Link>
+            <Link href="/prywatnosc" className="hover:text-[#16B8A7] transition-colors underline">
+              Polityka Prywatności
             </Link>
           </div>
 
