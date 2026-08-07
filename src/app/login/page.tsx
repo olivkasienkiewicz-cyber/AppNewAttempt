@@ -28,7 +28,7 @@ export default function LoginPage() {
     const result = await signIn('resend', {
       email: trimmed,
       redirect: false,
-      callbackUrl: '/',
+            callbackUrl: '/post-login',
     });
     setSubmitting(false);
     if (result?.error) {
