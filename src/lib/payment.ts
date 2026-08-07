@@ -1,8 +1,8 @@
 // Placeholder bank details — replace with real account info before launch.
 export const BANK_DETAILS = {
-  accountHolder: 'Studilly Sp. z o.o. (placeholder)',
-  iban: 'PL00 0000 0000 0000 0000 0000 0000',
-  bankName: 'Mock Bank S.A.',
+  accountHolder: 'Studilly - Olivia Sienkiewicz',
+  iban: 'PL92 1050 1025 1000 0090 8734 1583',
+  bankName: 'ING Bank Śląski',
 } as const;
 
 export const HOURLY_RATE_PLN = 230;
