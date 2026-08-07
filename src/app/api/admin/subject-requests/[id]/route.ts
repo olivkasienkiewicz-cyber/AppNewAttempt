@@ -3,6 +3,8 @@ import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { ADMIN_EMAIL } from '@/lib/payment';
 
+export const dynamic = 'force-dynamic';
+
 const VALID_STATUSES = ['new', 'in_progress', 'fulfilled', 'declined'];
 
 export async function PATCH(
@@ -33,4 +35,3 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true });
 }
-
