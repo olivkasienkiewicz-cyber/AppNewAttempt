@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sql } from '@/lib/db';
 import { rowToSlot, rowToNotification, rowToUser } from '@/lib/db-mappers';
-import { referenceCodeForSlot, amountForSlot, BANK_DETAILS } from '@/lib/payment';
+import { referenceCodeForSlot, amountForSlot, BANK_DETAILS, ADMIN_EMAIL } from '@/lib/payment';
 import { sendEmail } from '@/lib/email';
 
 export async function POST(
@@ -102,6 +102,18 @@ export async function POST(
           }),
         })
       : Promise.resolve(),
+    sendEmail({
+      to: ADMIN_EMAIL,
+      subject: `New booking — ${student?.name ?? 'a student'} × ${tutor?.name ?? 'a tutor'} — ${ddmm} at ${slot.startTime}`,
+      html: adminEmailHtml({
+        studentName: student?.name ?? 'Unknown student',
+        studentEmail: studentEmail ?? '—',
+        tutorName: tutor?.name ?? 'Unknown tutor',
+        ddmm,
+        startTime: slot.startTime,
+        payment,
+      }),
+    }),
   ]);
 
   return NextResponse.json({
@@ -158,3 +170,33 @@ function tutorEmailHtml(args: {
     </div>
   `;
 }
+
+function adminEmailHtml(args: {
+  studentName: string;
+  studentEmail: string;
+  tutorName: string;
+  ddmm: string;
+  startTime: string;
+  payment: {
+    referenceCode: string;
+    amount: number;
+    currency: string;
+    bankDetails: { accountHolder: string; iban: string; bankName: string };
+  };
+}): string {
+  const { studentName, studentEmail, tutorName, ddmm, startTime, payment } = args;
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>New booking</h2>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 4px 0; color: #666;">Student</td><td style="padding: 4px 0; text-align: right;">${studentName} (${studentEmail})</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Tutor</td><td style="padding: 4px 0; text-align: right;">${tutorName}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Date</td><td style="padding: 4px 0; text-align: right;">${ddmm} at ${startTime}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Amount due</td><td style="padding: 4px 0; text-align: right;">${payment.amount.toFixed(2)} ${payment.currency}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Reference code</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
+      </table>
+      <p style="color: #666; font-size: 13px;">Watch for a transfer matching this reference code, then confirm payment in the admin bookings page.</p>
+    </div>
+  `;
+}
+
