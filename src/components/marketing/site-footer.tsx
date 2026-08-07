@@ -26,7 +26,7 @@ export function SiteFooter() {
                 
                   href="tel:+48666233344"
                   className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors"
-                >
+  
                   <Phone className="w-4 h-4 text-[#7CD8C5]" strokeWidth={1.75} />
                   +48 666 233 344
                 </a>
