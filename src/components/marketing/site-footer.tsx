@@ -1,4 +1,5 @@
 import { Mail, Phone } from "lucide-react";
+import Link from "next/link";
 
 export function SiteFooter() {
   return (
@@ -48,6 +49,13 @@ export function SiteFooter() {
           <p>Studilly – Olivia Sienkiewicz</p>
           <p>ul. Komfortowa 6, 02-995 Warszawa, Polska</p>
           <p>NIP: 9512653365</p>
+
+          <div className="mt-4 flex gap-4">
+            <Link href="/regulamin" className="hover:text-[#16B8A7] transition-colors underline">
+              Regulamin
+            </Link>
+          </div>
+
           <p className="mt-2 text-[#F7F5F0]/40">
             © {new Date().getFullYear()} Studilly. All rights reserved.
           </p>
