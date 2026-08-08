@@ -248,3 +248,109 @@ export function AdminTutorsTable({ tutors }: { tutors: TutorProfile[] }) {
           disabled={saving || uploadingAdd}
           className="px-3 py-1 rounded bg-black text-white text-xs disabled:opacity-50"
         >
+          {saving ? 'Saving...' : 'Add tutor'}
+        </button>
+      </div>
+
+      <table className="w-full text-sm border-collapse">
+        <thead>
+          <tr className="text-left border-b">
+            <th className="py-2">Photo</th>
+            <th className="py-2">Name</th>
+            <th className="py-2">Subject</th>
+            <th className="py-2">Bio</th>
+            <th className="py-2"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {tutors.map((t) => (
+            <tr key={t.id} className="border-b align-top">
+              {editingId === t.id ? (
+                <>
+                  <td className="py-2 w-40">
+                    <div className="space-y-2">
+                      <DropZone onFile={handleEditDrop} uploading={uploadingEdit} label="Drop photo" />
+                      <input
+                        value={editForm.photoUrl}
+                        onChange={(e) => setEditForm({ ...editForm, photoUrl: e.target.value })}
+                        className="border rounded px-2 py-1 text-xs w-full"
+                        placeholder="or paste URL"
+                      />
+                      {editForm.photoUrl && (
+                        <img src={editForm.photoUrl} alt="Preview" className="h-12 w-12 object-cover rounded border" />
+                      )}
+                    </div>
+                  </td>
+                  <td className="py-2">
+                    <input
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="border rounded px-2 py-1 text-xs w-full"
+                    />
+                  </td>
+                  <td className="py-2">
+                    <input
+                      value={editForm.subject}
+                      onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
+                      className="border rounded px-2 py-1 text-xs w-full"
+                    />
+                  </td>
+                  <td className="py-2">
+                    <textarea
+                      value={editForm.bio}
+                      onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                      className="border rounded px-2 py-1 text-xs w-full"
+                      rows={3}
+                    />
+                    {editError && <div className="text-xs text-red-600 mt-1">{editError}</div>}
+                  </td>
+                  <td className="py-2 space-x-2 whitespace-nowrap">
+                    <button
+                      onClick={() => saveEdit(t.id)}
+                      disabled={saving || uploadingEdit}
+                      className="px-3 py-1 rounded bg-black text-white text-xs disabled:opacity-50"
+                    >
+                      {saving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button onClick={cancelEditing} className="px-3 py-1 rounded text-xs">
+                      Cancel
+                    </button>
+                  </td>
+                </>
+              ) : (
+                <>
+                  <td className="py-2">
+                    {t.photoUrl ? (
+                      <img src={t.photoUrl} alt={t.name} className="h-10 w-10 object-cover rounded border" />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </td>
+                  <td className="py-2">{t.name}</td>
+                  <td className="py-2">{t.subject}</td>
+                  <td className="py-2 max-w-xs truncate">
+                    {t.bio}
+                    {rowError?.id === t.id && (
+                      <div className="text-xs text-red-600 mt-1 whitespace-normal">{rowError.message}</div>
+                    )}
+                  </td>
+                  <td className="py-2 space-x-2 whitespace-nowrap">
+                    <button onClick={() => startEditing(t)} className="px-3 py-1 rounded border text-xs">
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => deleteTutor(t.id)}
+                      className="px-3 py-1 rounded bg-red-600 text-white text-xs"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
