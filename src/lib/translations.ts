@@ -319,4 +319,40 @@ export const translations: Record<"en" | "pl", Translations> = {
       requestSubjectLink: "Nie widzisz swojego przedmiotu? Zgłoś go",
     },
     subjectRequest: {
-      
+      emptyStatePrompt: "Nie widzisz swojego przedmiotu? Daj nam znać, a znajdziemy korepetytora.",
+      modalTitle: "Zgłoś przedmiot",
+      modalIntro: "Powiedz nam, czego szukasz, a skontaktujemy się z korepetytorami, którzy mogą tego uczyć.",
+      subjectLabel: "Przedmiot",
+      subjectPlaceholder: "np. Psychologia",
+      levelLabel: "Poziom (opcjonalnie)",
+      levelPlaceholder: "Wybierz poziom",
+      noteLabel: "Coś jeszcze? (opcjonalnie)",
+      notePlaceholder: "np. Szukam osoby z doświadczeniem w IA",
+      submit: "Wyślij zgłoszenie",
+      cancel: "Anuluj",
+      successTitle: "Zgłoszenie wysłane",
+      successBody: "Dziękujemy — odezwiemy się, gdy znajdziemy korepetytora do tego przedmiotu.",
+      duplicateError: "Już zgłosiłaś/eś ten przedmiot. Odezwiemy się, gdy znajdziemy korepetytora.",
+      genericError: "Coś poszło nie tak. Spróbuj ponownie.",
+      close: "Zamknij",
+    },
+    slotRequest: {
+      modalTitle: "Poproś o termin",
+      modalIntro: "Nie widzisz dogodnego terminu? Poproś korepetytora, żeby go dodał.",
+      dateLabel: "Data",
+      timeLabel: "Godzina",
+      timePlaceholder: "Wybierz godzinę",
+      noteLabel: "Notatka (opcjonalnie)",
+      notePlaceholder: "Coś, o czym korepetytor powinien wiedzieć",
+      submit: "Wyślij prośbę",
+      cancel: "Anuluj",
+      successTitle: "Prośba wysłana",
+      successBody: "Poinformowaliśmy korepetytora — doda termin, jeśli będzie mu pasował.",
+      genericError: "Coś poszło nie tak. Spróbuj ponownie.",
+      close: "Zamknij",
+    },
+  },
+};
+
+export type Locale = keyof typeof translations;
+export type TranslationKeys = Translations;
