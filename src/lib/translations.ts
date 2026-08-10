@@ -68,6 +68,21 @@ export type Translations = {
     genericError: string;
     close: string;
   };
+  slotRequest: {
+    modalTitle: string;
+    modalIntro: string;
+    dateLabel: string;
+    timeLabel: string;
+    timePlaceholder: string;
+    noteLabel: string;
+    notePlaceholder: string;
+    submit: string;
+    cancel: string;
+    successTitle: string;
+    successBody: string;
+    genericError: string;
+    close: string;
+  };
 };
 
 export const translations: Record<"en" | "pl", Translations> = {
@@ -188,6 +203,21 @@ export const translations: Record<"en" | "pl", Translations> = {
       genericError: "Something went wrong. Please try again.",
       close: "Close",
     },
+    slotRequest: {
+      modalTitle: "Request a time slot",
+      modalIntro: "Don't see a time that works? Ask your tutor to add one.",
+      dateLabel: "Date",
+      timeLabel: "Time",
+      timePlaceholder: "Pick a time",
+      noteLabel: "Note (optional)",
+      notePlaceholder: "Anything the tutor should know",
+      submit: "Send request",
+      cancel: "Cancel",
+      successTitle: "Request sent",
+      successBody: "We've let the tutor know — they'll add the slot if it works for them.",
+      genericError: "Something went wrong. Please try again.",
+      close: "Close",
+    },
   },
   pl: {
     nav: {
@@ -289,25 +319,4 @@ export const translations: Record<"en" | "pl", Translations> = {
       requestSubjectLink: "Nie widzisz swojego przedmiotu? Zgłoś go",
     },
     subjectRequest: {
-      emptyStatePrompt: "Nie widzisz swojego przedmiotu? Daj nam znać, a znajdziemy korepetytora.",
-      modalTitle: "Zgłoś przedmiot",
-      modalIntro: "Powiedz nam, czego szukasz, a skontaktujemy się z korepetytorami, którzy mogą tego uczyć.",
-      subjectLabel: "Przedmiot",
-      subjectPlaceholder: "np. Psychologia",
-      levelLabel: "Poziom (opcjonalnie)",
-      levelPlaceholder: "Wybierz poziom",
-      noteLabel: "Coś jeszcze? (opcjonalnie)",
-      notePlaceholder: "np. Szukam osoby z doświadczeniem w IA",
-      submit: "Wyślij zgłoszenie",
-      cancel: "Anuluj",
-      successTitle: "Zgłoszenie wysłane",
-      successBody: "Dziękujemy — odezwiemy się, gdy znajdziemy korepetytora do tego przedmiotu.",
-      duplicateError: "Już zgłosiłaś/eś ten przedmiot. Odezwiemy się, gdy znajdziemy korepetytora.",
-      genericError: "Coś poszło nie tak. Spróbuj ponownie.",
-      close: "Zamknij",
-    },
-  },
-};
-
-export type Locale = keyof typeof translations;
-export type TranslationKeys = Translations;
+      
