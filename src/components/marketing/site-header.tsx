@@ -2,11 +2,15 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { LanguageToggle } from "../LanguageToggle";
 import { useLanguage } from "@/context/LanguageContext";
 
 export function SiteHeader() {
   const { t } = useLanguage();
+  const router = useRouter();
+
+  const goToLogin = () => router.push("/login");
 
   return (
     <header className="border-b border-[#0E2A47]/10 bg-[#F7F5F0]">
@@ -39,18 +43,20 @@ export function SiteHeader() {
           >
             {t.nav.opinions}
           </Link>
-          <Link
-            href="/login"
+          <button
+            type="button"
+            onClick={goToLogin}
             className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
           >
             {t.nav.login}
-          </Link>
-          <Link
-            href="/login"
+          </button>
+          <button
+            type="button"
+            onClick={goToLogin}
             className="rounded-full bg-[#16B8A7] px-5 py-2 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
           >
             Get started
-          </Link>
+          </button>
           <LanguageToggle />
         </nav>
       </div>
