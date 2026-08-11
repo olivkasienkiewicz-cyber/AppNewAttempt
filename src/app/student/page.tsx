@@ -212,4 +212,127 @@ export default function StudentBrowsePage() {
                   </p>
                 ) : (
                   <label className="block">
-                    <span className="mb-1.
+                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Tutor</span>
+                    <Select
+                      value={selectedTutorId ?? undefined}
+                      onValueChange={(value) => setSelectedTutorId(value ?? null)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select a tutor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredTutors.map((tutor) => (
+                          <SelectItem key={tutor.id} value={tutor.id}>{tutor.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </label>
+                )}
+              </div>
+
+              {daysWithSlots.length === 0 ? (
+                <EmptyState>
+                  <p>No open slots for {selectedTutor?.name ?? 'this tutor'} right now.</p>
+                  <button
+                    type="button"
+                    onClick={() => setSlotRequestModalOpen(true)}
+                    className="mt-3 text-sm font-medium text-[#16B8A7] hover:underline"
+                  >
+                    Request a time
+                  </button>
+                </EmptyState>
+              ) : (
+                <div>
+                  <div className="mb-4 flex items-center justify-between">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Previous day"
+                      disabled={!canGoPrev}
+                      onClick={goPrev}
+                      className="h-9 w-9"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-foreground">
+                        {selectedDay ? formatWeekday(selectedDay) : ''}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {selectedDay ? formatDDMM(selectedDay) : ''}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Next day"
+                      disabled={!canGoNext}
+                      onClick={goNext}
+                      className="h-9 w-9"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {slotsOnDay.map((slot) => (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setPendingSlot(slot)}
+                        className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors"
+                      >
+                        {slot.startTime}
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setSlotRequestModalOpen(true)}
+                    className="mt-4 text-sm font-medium text-[#16B8A7] hover:underline"
+                  >
+                    Don't see a time that works? Request one
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {pendingSlot && selectedTutor && (
+        <BookingConfirmModal
+          slot={pendingSlot}
+          tutor={selectedTutor}
+          onConfirm={handleConfirm}
+          onCancel={() => setPendingSlot(null)}
+        />
+      )}
+
+      {paymentInfo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-xl bg-background p-6 shadow-xl">
+            <h2 className="font-display text-2xl text-foreground">Booking confirmed</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Please transfer payment within 48 hours using the details below.
+            </p>
+            <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
+              <p><span className="text-muted-foreground">Reference: </span>{paymentInfo.reference}</p>
+              <p><span className="text-muted-foreground">Amount: </span>{paymentInfo.amount}</p>
+              <p><span className="text-muted-foreground">Account: </span>{paymentInfo.accountNumber}</p>
+            </div>
+            <Button className="mt-6 w-full" onClick={() => setPaymentInfo(null)}>Done</Button>
+          </div>
+        </div>
+      )}
+
+      <SubjectRequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
+      <SlotRequestModal
+        open={slotRequestModalOpen}
+        onOpenChange={setSlotRequestModalOpen}
+        tutorId={selectedTutorId}
+      />
+    </main>
+  );
+}
