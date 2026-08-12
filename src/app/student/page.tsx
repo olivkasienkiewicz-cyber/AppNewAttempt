@@ -52,20 +52,32 @@ export default function StudentBrowsePage() {
   const [slotRequestModalOpen, setSlotRequestModalOpen] = useState(false);
 
   // Only list subjects actually offered by at least one tutor, in the
-  // fixed list's canonical order.
+  // fixed list's canonical order. For "Other" entries, show what the tutor
+  // actually typed (their detail text) instead of the literal word "Other".
+  function effectiveSubjectLabel(ts: { subject: string; detail: string | null }): string {
+    return ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject;
+  }
+
   const subjectOptions = useMemo(() => {
     const offered = new Set<string>();
     for (const tutor of tutors) {
-      for (const ts of tutor.subjects) offered.add(ts.subject);
+      for (const ts of tutor.subjects) offered.add(effectiveSubjectLabel(ts));
     }
-    return ALL_SUBJECTS.filter((s) => offered.has(s));
+    const fixed = ALL_SUBJECTS.filter((s) => offered.has(s));
+    const custom = Array.from(offered)
+      .filter((label) => !(ALL_SUBJECTS as readonly string[]).includes(label))
+      .sort((a, b) => a.localeCompare(b));
+    return [...fixed, ...custom];
   }, [tutors]);
 
   const filteredTutors = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     return tutors.filter((tutor) => {
       if (q && !tutor.name.toLowerCase().includes(q)) return false;
-      if (subjectFilter !== 'all' && !tutor.subjects.some((ts) => ts.subject === subjectFilter)) {
+      if (
+        subjectFilter !== 'all' &&
+        !tutor.subjects.some((ts) => effectiveSubjectLabel(ts) === subjectFilter)
+      ) {
         return false;
       }
       if (
@@ -241,7 +253,7 @@ export default function StudentBrowsePage() {
                 {selectedTutor && selectedTutor.subjects.length > 0 && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {selectedTutor.subjects
-                      .map((ts) => ts.subject + (ts.level ? ` (${ts.level})` : ''))
+                      .map((ts) => effectiveSubjectLabel(ts) + (ts.level ? ` (${ts.level})` : ''))
                       .join(' · ')}
                   </p>
                 )}
