@@ -22,6 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/brand/page-header';
 
 const DEFAULT_DURATION = 60;
+const DURATION_OPTIONS = [60, 90, 120];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const TIME_OPTIONS: string[] = (() => {
@@ -34,6 +35,30 @@ const TIME_OPTIONS: string[] = (() => {
 
 const toKey = (d: Date) => format(d, 'yyyy-MM-dd');
 
+function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(mins: number): string {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// Two ranges overlap if one starts before the other ends, both ways round.
+// Applies regardless of the existing slot's status — a booked slot still
+// blocks the time, and so does another free slot.
+function wouldOverlap(existing: Slot[], startTime: string, duration: number): boolean {
+  const newStart = toMinutes(startTime);
+  const newEnd = newStart + duration;
+  return existing.some((s) => {
+    const exStart = toMinutes(s.startTime);
+    const exEnd = exStart + s.durationMinutes;
+    return newStart < exEnd && exStart < newEnd;
+  });
+}
+
 export default function AvailabilityPage() {
   const hydrated = useHasHydrated();
   const state = useAppState();
@@ -45,6 +70,7 @@ export default function AvailabilityPage() {
   const [displayMonth, setDisplayMonth] = useState<Date>(today);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [newSlotTime, setNewSlotTime] = useState<string>('');
+  const [newSlotDuration, setNewSlotDuration] = useState<number>(DEFAULT_DURATION);
 
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
 
@@ -101,6 +127,7 @@ export default function AvailabilityPage() {
     if (!inWindow(d)) return;
     setSelectedDate(d);
     setNewSlotTime('');
+    setNewSlotDuration(DEFAULT_DURATION);
   };
 
   const handleAddSlot = () => {
@@ -108,13 +135,19 @@ export default function AvailabilityPage() {
     if (isPastTime(newSlotTime)) { toast.error('That time has already passed.'); return; }
     const dateKey = toKey(selectedDate);
     const existing = slotsByDate.get(dateKey) ?? [];
-    if (existing.some((s) => s.startTime === newSlotTime)) {
-      toast.error('That time already has a slot.');
+    if (wouldOverlap(existing, newSlotTime, newSlotDuration)) {
+      toast.error('That overlaps with an existing slot on this day.');
       return;
     }
-    createSlot({ tutorId: currentUser.id, date: dateKey, startTime: newSlotTime, durationMinutes: DEFAULT_DURATION });
+    createSlot({
+      tutorId: currentUser.id,
+      date: dateKey,
+      startTime: newSlotTime,
+      durationMinutes: newSlotDuration,
+    });
     setNewSlotTime('');
-    toast.success(`Added ${newSlotTime} on ${format(selectedDate, 'd MMM')}`);
+    setNewSlotDuration(DEFAULT_DURATION);
+    toast.success(`Added ${newSlotTime} (${newSlotDuration} min) on ${format(selectedDate, 'd MMM')}`);
   };
 
   const handleDeleteSlot = (slot: Slot) => {
@@ -199,7 +232,9 @@ export default function AvailabilityPage() {
                 {selectedSlots.map((slot) => (
                   <li key={slot.id} className="flex items-center justify-between rounded-md border border-border px-3 py-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium tabular-nums">{slot.startTime}</span>
+                      <span className="text-sm font-medium tabular-nums">
+                        {slot.startTime}–{minutesToTime(toMinutes(slot.startTime) + slot.durationMinutes)}
+                      </span>
                       {slot.status === 'booked' && (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2 py-0.5 text-xs font-medium text-accent-foreground">
                           <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-success" />
@@ -217,14 +252,24 @@ export default function AvailabilityPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2 pt-2">
+          <div className="flex flex-wrap items-center gap-2 pt-2">
             <Select value={newSlotTime} onValueChange={(v) => setNewSlotTime(v ?? '')}>
-              <SelectTrigger className="flex-1" aria-label="Start time">
+              <SelectTrigger className="min-w-[9rem] flex-1" aria-label="Start time">
                 <SelectValue placeholder="Pick a start time" />
               </SelectTrigger>
               <SelectContent className="max-h-60">
                 {TIME_OPTIONS.map((t) => (
                   <SelectItem key={t} value={t} disabled={isPastTime(t)}>{t}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={String(newSlotDuration)} onValueChange={(v) => setNewSlotDuration(Number(v))}>
+              <SelectTrigger className="w-28" aria-label="Duration">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DURATION_OPTIONS.map((d) => (
+                  <SelectItem key={d} value={String(d)}>{d} min</SelectItem>
                 ))}
               </SelectContent>
             </Select>
