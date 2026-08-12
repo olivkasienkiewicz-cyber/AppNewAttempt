@@ -301,14 +301,13 @@ export default function StudentBrowsePage() {
         </>
       )}
 
-      {pendingSlot && selectedTutor && (
-        <BookingConfirmModal
-          slot={pendingSlot}
-          tutor={selectedTutor}
-          onConfirm={handleConfirm}
-          onCancel={() => setPendingSlot(null)}
-        />
-      )}
+      <BookingConfirmModal
+        open={pendingSlot !== null}
+        onOpenChange={(nextOpen) => { if (!nextOpen) setPendingSlot(null); }}
+        tutorName={selectedTutor?.name ?? ''}
+        slot={pendingSlot}
+        onConfirm={handleConfirm}
+      />
 
       {paymentInfo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
@@ -318,9 +317,11 @@ export default function StudentBrowsePage() {
               Please transfer payment within 48 hours using the details below.
             </p>
             <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
-              <p><span className="text-muted-foreground">Reference: </span>{paymentInfo.reference}</p>
-              <p><span className="text-muted-foreground">Amount: </span>{paymentInfo.amount}</p>
-              <p><span className="text-muted-foreground">Account: </span>{paymentInfo.accountNumber}</p>
+              <p><span className="text-muted-foreground">Reference: </span>{paymentInfo.referenceCode}</p>
+              <p><span className="text-muted-foreground">Amount: </span>{paymentInfo.amount} {paymentInfo.currency}</p>
+              <p><span className="text-muted-foreground">Account holder: </span>{paymentInfo.bankDetails.accountHolder}</p>
+              <p><span className="text-muted-foreground">IBAN: </span>{paymentInfo.bankDetails.iban}</p>
+              <p><span className="text-muted-foreground">Bank: </span>{paymentInfo.bankDetails.bankName}</p>
             </div>
             <Button className="mt-6 w-full" onClick={() => setPaymentInfo(null)}>Done</Button>
           </div>
