@@ -3,13 +3,13 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, ArrowLeftRight } from 'lucide-react';
 import {
   addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, format, isSameMonth, isSameDay, isBefore, isAfter, startOfToday,
 } from 'date-fns';
 import { toast } from 'sonner';
-import { useAppState, createSlot, deleteSlot, type Slot } from '@/lib/store';
+import { useAppState, createSlot, deleteSlot, refreshState, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,9 +46,6 @@ function minutesToTime(mins: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
-// Two ranges overlap if one starts before the other ends, both ways round.
-// Applies regardless of the existing slot's status — a booked slot still
-// blocks the time, and so does another free slot.
 function wouldOverlap(existing: Slot[], startTime: string, duration: number): boolean {
   const newStart = toMinutes(startTime);
   const newEnd = newStart + duration;
@@ -57,6 +54,16 @@ function wouldOverlap(existing: Slot[], startTime: string, duration: number): bo
     const exEnd = exStart + s.durationMinutes;
     return newStart < exEnd && exStart < newEnd;
   });
+}
+
+function startDateTime(date: string, time: string): Date {
+  const [y, m, d] = date.split('-').map(Number);
+  const [hh, mm] = time.split(':').map(Number);
+  return new Date(y, m - 1, d, hh, mm);
+}
+
+function hoursUntil(date: string, time: string): number {
+  return (startDateTime(date, time).getTime() - Date.now()) / (1000 * 60 * 60);
 }
 
 export default function AvailabilityPage() {
@@ -71,6 +78,10 @@ export default function AvailabilityPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [newSlotTime, setNewSlotTime] = useState<string>('');
   const [newSlotDuration, setNewSlotDuration] = useState<number>(DEFAULT_DURATION);
+
+  const [cancelTarget, setCancelTarget] = useState<Slot | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Slot | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
 
@@ -87,6 +98,15 @@ export default function AvailabilityPage() {
     }
     return map;
   }, [state.slots, currentUser]);
+
+  const moveOptions = useMemo<Slot[]>(() => {
+    if (!moveTarget || !currentUser) return [];
+    const now = new Date();
+    return Object.values(state.slots)
+      .filter((s) => s.tutorId === currentUser.id && s.status === 'free' && s.id !== moveTarget.id)
+      .filter((s) => startDateTime(s.date, s.startTime).getTime() > now.getTime())
+      .sort((a, b) => a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date));
+  }, [moveTarget, currentUser, state.slots]);
 
   const gridDays = useMemo(() => {
     const monthStart = startOfMonth(displayMonth);
@@ -151,8 +171,55 @@ export default function AvailabilityPage() {
   };
 
   const handleDeleteSlot = (slot: Slot) => {
-    if (slot.status === 'booked') { toast.error('Cancel the booking first — feature coming soon'); return; }
+    if (slot.status === 'booked') {
+      setCancelTarget(slot);
+      return;
+    }
     deleteSlot(slot.id);
+  };
+
+  const confirmCancel = async () => {
+    if (!cancelTarget) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/slots/${cancelTarget.id}/cancel`, { method: 'POST' });
+      if (!res.ok) { toast.error("Couldn't cancel that session — try again."); return; }
+      toast.success('Session cancelled');
+      await refreshState();
+    } catch {
+      toast.error("Couldn't reach the server.");
+    } finally {
+      setBusy(false);
+      setCancelTarget(null);
+    }
+  };
+
+  const confirmMove = async (newSlotId: string) => {
+    if (!moveTarget) return;
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/slots/${moveTarget.id}/reschedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newSlotId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data?.error === 'new_slot_taken') {
+          toast.error('That time was just taken — pick another.');
+        } else {
+          toast.error("Couldn't move that session — try again.");
+        }
+        return;
+      }
+      toast.success('Session moved');
+      await refreshState();
+    } catch {
+      toast.error("Couldn't reach the server.");
+    } finally {
+      setBusy(false);
+      setMoveTarget(null);
+    }
   };
 
   return (
@@ -242,10 +309,18 @@ export default function AvailabilityPage() {
                         </span>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" aria-label={`Delete slot at ${slot.startTime}`}
-                      onClick={() => handleDeleteSlot(slot)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      {slot.status === 'booked' && (
+                        <Button variant="ghost" size="icon" aria-label={`Move slot at ${slot.startTime}`}
+                          onClick={() => setMoveTarget(slot)}>
+                          <ArrowLeftRight className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="icon" aria-label={`Delete slot at ${slot.startTime}`}
+                        onClick={() => handleDeleteSlot(slot)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -283,6 +358,71 @@ export default function AvailabilityPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {cancelTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+            <h2 className="font-display text-2xl text-foreground">Cancel this session?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {cancelTarget.date} at {cancelTarget.startTime} with {state.users[cancelTarget.bookedByStudentId ?? '']?.name ?? 'the student'}.
+            </p>
+            {hoursUntil(cancelTarget.date, cancelTarget.startTime) < 24 && (
+              <p className="mt-3 text-sm text-warning">
+                This is less than 24 hours away. Per our cancellation policy, the student may still be charged even though you&apos;re cancelling now.
+              </p>
+            )}
+            <div className="mt-6 flex gap-3">
+              <Button variant="ghost" className="flex-1" onClick={() => setCancelTarget(null)} disabled={busy}>
+                Keep session
+              </Button>
+              <Button variant="outline" className="flex-1" disabled={busy} onClick={() => void confirmCancel()}>
+                {busy ? 'Cancelling…' : 'Cancel session'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {moveTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+            <h2 className="font-display text-2xl text-foreground">Move this session</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Currently {moveTarget.date} at {moveTarget.startTime} with {state.users[moveTarget.bookedByStudentId ?? '']?.name ?? 'the student'}.
+            </p>
+            {hoursUntil(moveTarget.date, moveTarget.startTime) < 24 && (
+              <p className="mt-3 text-sm text-warning">
+                This is less than 24 hours away. Per our cancellation policy, the student may still be charged even if you move it now.
+              </p>
+            )}
+            {moveOptions.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">
+                You don&apos;t have any other open slots to move this to yet.
+              </p>
+            ) : (
+              <ul className="mt-4 max-h-48 space-y-1.5 overflow-y-auto">
+                {moveOptions.map((opt) => (
+                  <li key={opt.id}>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void confirmMove(opt.id)}
+                      className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:border-[#16B8A7] hover:text-[#16B8A7]"
+                    >
+                      {opt.date} · {opt.startTime}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-6">
+              <Button variant="ghost" className="w-full" onClick={() => setMoveTarget(null)} disabled={busy}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
