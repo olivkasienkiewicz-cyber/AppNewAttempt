@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import {
   bookSlot, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
+import { ALL_SUBJECTS } from '@/lib/subjects';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -50,20 +51,29 @@ export default function StudentBrowsePage() {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [slotRequestModalOpen, setSlotRequestModalOpen] = useState(false);
 
+  // Only list subjects actually offered by at least one tutor, in the
+  // fixed list's canonical order.
   const subjectOptions = useMemo(() => {
-    const set = new Set<string>();
+    const offered = new Set<string>();
     for (const tutor of tutors) {
-      if (tutor.subject) set.add(tutor.subject);
+      for (const ts of tutor.subjects) offered.add(ts.subject);
     }
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    return ALL_SUBJECTS.filter((s) => offered.has(s));
   }, [tutors]);
 
   const filteredTutors = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     return tutors.filter((tutor) => {
       if (q && !tutor.name.toLowerCase().includes(q)) return false;
-      if (subjectFilter !== 'all' && tutor.subject !== subjectFilter) return false;
-      if (levelFilter !== 'all' && !(tutor.level ?? '').toUpperCase().includes(levelFilter)) return false;
+      if (subjectFilter !== 'all' && !tutor.subjects.some((ts) => ts.subject === subjectFilter)) {
+        return false;
+      }
+      if (
+        levelFilter !== 'all' &&
+        !tutor.subjects.some((ts) => (ts.level ?? '').toUpperCase().includes(levelFilter))
+      ) {
+        return false;
+      }
       return true;
     });
   }, [tutors, searchText, subjectFilter, levelFilter]);
@@ -227,6 +237,13 @@ export default function StudentBrowsePage() {
                       </SelectContent>
                     </Select>
                   </label>
+                )}
+                {selectedTutor && selectedTutor.subjects.length > 0 && (
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {selectedTutor.subjects
+                      .map((ts) => ts.subject + (ts.level ? ` (${ts.level})` : ''))
+                      .join(' · ')}
+                  </p>
                 )}
               </div>
 
