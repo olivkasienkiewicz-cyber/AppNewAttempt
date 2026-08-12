@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
+import type { TutorSubject } from '@/lib/subjects';
 
 export type Role = 'tutor' | 'student';
 export type SlotStatus = 'free' | 'booked';
@@ -10,8 +11,7 @@ export type User = {
   id: string;
   name: string;
   role: Role;
-  subject: string | null;
-  level: string | null;
+  subjects: TutorSubject[];
   createdAt: string;
 };
 
@@ -176,39 +176,24 @@ export function getCurrentUser(): User | null {
 
 // Sets this user's name + role for the first time (or re-sets them). The
 // server derives *which* user from the session — there's no id parameter.
-// subject/level are optional here since a student never sets them, and a
-// tutor can also set them later via updateTutorSubjects instead.
-export async function completeOnboarding(
-  name: string,
-  role: Role,
-  subject?: string | null,
-  level?: string | null
-): Promise<User> {
-  const body: { name: string; role: Role; subject?: string | null; level?: string | null } = {
-    name,
-    role,
-  };
-  if (subject !== undefined) body.subject = subject;
-  if (level !== undefined) body.level = level;
-
+// Subjects are managed separately, via updateTutorSubjects on the tutor's
+// own profile page, not at onboarding.
+export async function completeOnboarding(name: string, role: Role): Promise<User> {
   const user = await api<User>('/api/users/me', {
     method: 'PATCH',
-    body: JSON.stringify(body),
+    body: JSON.stringify({ name, role }),
   });
   snapshot = { ...snapshot, users: { ...snapshot.users, [user.id]: user } };
   emit();
   return user;
 }
 
-// Lets a tutor update just their subject/level later, without resubmitting
-// their name or role.
-export async function updateTutorSubjects(
-  subject: string | null,
-  level: string | null
-): Promise<User> {
+// Lets a tutor replace their full list of subjects (add/remove/edit any
+// number of entries in one call).
+export async function updateTutorSubjects(subjects: TutorSubject[]): Promise<User> {
   const user = await api<User>('/api/users/me', {
     method: 'PATCH',
-    body: JSON.stringify({ subject, level }),
+    body: JSON.stringify({ subjects }),
   });
   snapshot = { ...snapshot, users: { ...snapshot.users, [user.id]: user } };
   emit();
