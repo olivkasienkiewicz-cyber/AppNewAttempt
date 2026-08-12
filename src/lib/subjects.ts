@@ -30,6 +30,7 @@ export const IB_SUBJECTS = [
 export const SERVICE_SUBJECTS = [
   'SAT Preparation',
   'University Application Support',
+  'Other',
 ] as const;
 
 export const ALL_SUBJECTS = [...IB_SUBJECTS, ...SERVICE_SUBJECTS] as const;
@@ -40,7 +41,22 @@ export function subjectRequiresLevel(subject: string): boolean {
   return (IB_SUBJECTS as readonly string[]).includes(subject);
 }
 
+// "University Application Support" and "Other" both carry a free-text
+// detail field — for the former it's optional context (e.g. "UK, US,
+// Canada"), for the latter it's required and IS the custom subject name
+// the tutor is describing (e.g. "Latin", "IELTS Prep").
+export function subjectSupportsDetail(subject: string): boolean {
+  return subject === 'University Application Support' || subject === 'Other';
+}
+
+export function subjectDetailRequired(subject: string): boolean {
+  return subject === 'Other';
+}
+
+export const MAX_DETAIL_LEN = 100;
+
 export type TutorSubject = {
   subject: string;
   level: string | null;
+  detail: string | null;
 };
