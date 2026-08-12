@@ -3,10 +3,18 @@ import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { rowToUser } from '@/lib/db-mappers';
 import type { Role } from '@/lib/store';
+import {
+  ALL_SUBJECTS,
+  LEVEL_OPTIONS,
+  MAX_DETAIL_LEN,
+  subjectDetailRequired,
+  subjectRequiresLevel,
+  subjectSupportsDetail,
+  type TutorSubject,
+} from '@/lib/subjects';
 
 const MAX_NAME = 40;
-const MAX_SUBJECT = 60;
-const MAX_LEVEL = 20;
+const MAX_SUBJECTS = 20;
 
 // Completes onboarding for the *currently signed-in* user, and also serves
 // as the general "edit my profile" endpoint. All fields are optional on
@@ -26,11 +34,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
 
-  const { name, role, subject, level } = (body ?? {}) as {
+  const { name, role, subjects } = (body ?? {}) as {
     name?: unknown;
     role?: unknown;
-    subject?: unknown;
-    level?: unknown;
+    subjects?: unknown;
   };
 
   const existingRows = await sql`SELECT * FROM users WHERE id = ${session.user.id}`;
@@ -55,39 +62,72 @@ export async function PATCH(req: Request) {
     nextRole = role;
   }
 
-  let nextSubject: string | null = existing.subject;
-  if (subject !== undefined) {
-    if (subject === null) {
-      nextSubject = null;
-    } else if (typeof subject === 'string') {
-      const trimmedSubject = subject.trim();
-      if (trimmedSubject.length > MAX_SUBJECT) {
+  let nextSubjects: TutorSubject[] = existing.subjects;
+  if (subjects !== undefined) {
+    if (!Array.isArray(subjects)) {
+      return NextResponse.json({ error: 'invalid_subjects' }, { status: 400 });
+    }
+    if (subjects.length > MAX_SUBJECTS) {
+      return NextResponse.json({ error: 'too_many_subjects' }, { status: 400 });
+    }
+
+    const validated: TutorSubject[] = [];
+    const seen = new Set<string>();
+
+    for (const item of subjects) {
+      if (typeof item !== 'object' || item === null) {
+        return NextResponse.json({ error: 'invalid_subjects' }, { status: 400 });
+      }
+      const subjectName = (item as Record<string, unknown>).subject;
+      const level = (item as Record<string, unknown>).level;
+      const detail = (item as Record<string, unknown>).detail;
+
+      if (typeof subjectName !== 'string' || !(ALL_SUBJECTS as readonly string[]).includes(subjectName)) {
         return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
       }
-      nextSubject = trimmedSubject.length > 0 ? trimmedSubject : null;
-    } else {
-      return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
-    }
-  }
 
-  let nextLevel: string | null = existing.level;
-  if (level !== undefined) {
-    if (level === null) {
-      nextLevel = null;
-    } else if (typeof level === 'string') {
-      const trimmedLevel = level.trim();
-      if (trimmedLevel.length > MAX_LEVEL) {
+      if (seen.has(subjectName)) {
+        return NextResponse.json({ error: 'duplicate_subject' }, { status: 400 });
+      }
+      seen.add(subjectName);
+
+      let normalizedLevel: string | null = null;
+      if (subjectRequiresLevel(subjectName)) {
+        if (level !== null && level !== undefined) {
+          if (typeof level !== 'string' || !(LEVEL_OPTIONS as readonly string[]).includes(level)) {
+            return NextResponse.json({ error: 'invalid_level' }, { status: 400 });
+          }
+          normalizedLevel = level;
+        }
+      } else if (level !== null && level !== undefined) {
         return NextResponse.json({ error: 'invalid_level' }, { status: 400 });
       }
-      nextLevel = trimmedLevel.length > 0 ? trimmedLevel : null;
-    } else {
-      return NextResponse.json({ error: 'invalid_level' }, { status: 400 });
+
+      let normalizedDetail: string | null = null;
+      if (subjectSupportsDetail(subjectName)) {
+        if (typeof detail === 'string') {
+          const trimmedDetail = detail.trim();
+          if (trimmedDetail.length > MAX_DETAIL_LEN) {
+            return NextResponse.json({ error: 'invalid_detail' }, { status: 400 });
+          }
+          normalizedDetail = trimmedDetail.length > 0 ? trimmedDetail : null;
+        }
+        if (subjectDetailRequired(subjectName) && !normalizedDetail) {
+          return NextResponse.json({ error: 'detail_required' }, { status: 400 });
+        }
+      } else if (detail !== null && detail !== undefined) {
+        return NextResponse.json({ error: 'invalid_detail' }, { status: 400 });
+      }
+
+      validated.push({ subject: subjectName, level: normalizedLevel, detail: normalizedDetail });
     }
+
+    nextSubjects = validated;
   }
 
   const rows = await sql`
     UPDATE users
-    SET name = ${nextName}, role = ${nextRole}, subject = ${nextSubject}, level = ${nextLevel}
+    SET name = ${nextName}, role = ${nextRole}, subjects = ${JSON.stringify(nextSubjects)}::jsonb
     WHERE id = ${session.user.id}
     RETURNING *
   `;
