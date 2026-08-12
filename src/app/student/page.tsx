@@ -1,4 +1,4 @@
-    'use client';
+'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -158,6 +158,7 @@ export default function StudentBrowsePage() {
           onClick={() => router.push('/notifications')} className="h-10 w-10">
           <Bell className="h-[18px] w-[18px]" />
         </Button>
+        <Button variant="ghost" onClick={() => router.push('/student/bookings')} className="h-10">My bookings</Button>
         <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
       </PageHeader>
 
