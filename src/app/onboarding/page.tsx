@@ -1,5 +1,4 @@
 'use client';
-
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -9,25 +8,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BrandMark } from '@/components/brand/brand-mark';
-
 const MAX_LEN = 40;
-
+const MAX_SUBJECT_LEN = 60;
 export default function OnboardingPage() {
   const { status } = useSession();
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [name, setName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [level, setLevel] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
   if (status === 'unauthenticated') {
     router.replace('/login');
     return null;
   }
-
   const trimmed = name.trim();
   const canSubmit = role !== null && trimmed.length > 0 && trimmed.length <= MAX_LEN && !submitting;
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!role) { setError('Choose one to continue.'); return; }
@@ -35,7 +32,12 @@ export default function OnboardingPage() {
     if (trimmed.length > MAX_LEN) { setError(`Name must be ${MAX_LEN} characters or fewer.`); return; }
     setSubmitting(true);
     try {
-      const user = await completeOnboarding(trimmed, role);
+      const user = await completeOnboarding(
+        trimmed,
+        role,
+        role === 'tutor' ? subject.trim() || null : undefined,
+        role === 'tutor' ? level.trim() || null : undefined
+      );
       router.replace(user.role === 'tutor' ? '/tutor' : '/student');
     } catch {
       setSubmitting(false);
@@ -43,7 +45,6 @@ export default function OnboardingPage() {
       toast.error("Couldn't reach the server to save your profile.");
     }
   };
-
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-10">
       <header className="mb-10 flex items-center justify-between border-b border-border pb-4">
@@ -90,8 +91,37 @@ export default function OnboardingPage() {
               aria-describedby={error ? 'name-error' : undefined}
               className="h-12 text-base"
             />
-            {error && <p id="name-error" className="text-sm text-destructive">{error}</p>}
           </div>
+          {role === 'tutor' && (
+            <div className="flex flex-col gap-4 rounded-lg border border-border p-4">
+              <p className="text-xs text-muted-foreground">
+                This helps students find you. You can change it anytime from your dashboard.
+              </p>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="subject" className="text-sm">Subject you tutor</Label>
+                <Input
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  maxLength={MAX_SUBJECT_LEN}
+                  placeholder="e.g. Mathematics"
+                  className="h-12 text-base"
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="level" className="text-sm">Level(s)</Label>
+                <Input
+                  id="level"
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                  maxLength={20}
+                  placeholder="e.g. HL/SL"
+                  className="h-12 text-base"
+                />
+              </div>
+            </div>
+          )}
+          {error && <p id="name-error" className="text-sm text-destructive">{error}</p>}
           <Button type="submit" size="lg" disabled={!canSubmit} className="h-12 text-base">
             {submitting ? 'Saving…' : 'Continue'}
           </Button>
