@@ -1,4 +1,4 @@
-'use client';
+    'use client';
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -256,6 +256,15 @@ export default function StudentBrowsePage() {
                       .map((ts) => effectiveSubjectLabel(ts) + (ts.level ? ` (${ts.level})` : ''))
                       .join(' · ')}
                   </p>
+                )}
+                {selectedTutor && (
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/messages/${selectedTutor.id}`)}
+                    className="mt-2 text-sm font-medium text-[#16B8A7] hover:underline"
+                  >
+                    Message {selectedTutor.name}
+                  </button>
                 )}
               </div>
 
