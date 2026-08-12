@@ -329,11 +329,13 @@ export default function StudentBrowsePage() {
       )}
 
       <SubjectRequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
-      <SlotRequestModal
-        open={slotRequestModalOpen}
-        onOpenChange={setSlotRequestModalOpen}
-        tutorId={selectedTutorId}
-      />
+      {selectedTutorId && (
+        <SlotRequestModal
+          open={slotRequestModalOpen}
+          onOpenChange={setSlotRequestModalOpen}
+          tutorId={selectedTutorId}
+        />
+      )}
     </main>
   );
 }
