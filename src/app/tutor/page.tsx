@@ -101,6 +101,9 @@ export default function TutorHomePage() {
             <DropdownMenuItem onClick={() => router.push('/tutor/availability')} className="cursor-pointer">
               Edit availability
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/tutor/profile')} className="cursor-pointer">
+              Edit profile
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={handleSwitchAccount} className="cursor-pointer">
               Switch account
             </DropdownMenuItem>
