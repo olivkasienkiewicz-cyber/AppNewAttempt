@@ -1,9 +1,6 @@
-import type { User, Slot, Notification } from '@/lib/store';
+import type { User, Slot, Notification, AvailabilityWindow } from '@/lib/store';
 import type { TutorSubject } from '@/lib/subjects';
 
-// Neon returns snake_case columns as plain JS values; these map each row
-// to the exact camelCase shape the client-side types expect, so the
-// client code never has to know the DB's column naming.
 export function rowToUser(row: Record<string, unknown>): User {
   return {
     id: row.id as string,
@@ -14,10 +11,6 @@ export function rowToUser(row: Record<string, unknown>): User {
   };
 }
 
-// The subjects column is JSONB — Neon may return it already parsed (an
-// array) or as a raw string depending on driver/version, so handle both.
-// Any malformed entries are dropped rather than throwing, since a bad row
-// shouldn't take down the whole users list.
 function parseSubjects(value: unknown): TutorSubject[] {
   if (!value) return [];
   let arr: unknown;
@@ -51,10 +44,8 @@ export function rowToSlot(row: Record<string, unknown>): Slot {
   return {
     id: row.id as string,
     tutorId: row.tutor_id as string,
-    // Postgres `date` columns come back as Date objects via the driver;
-    // normalize to YYYY-MM-DD to match the original string format.
     date: toDateOnlyString(row.date),
-    startTime: row.start_time as string,
+    startTime: normalizeTime(row.start_time),
     durationMinutes: Number(row.duration_minutes),
     status: row.status as Slot['status'],
     paymentStatus: row.payment_status as Slot['paymentStatus'],
@@ -64,6 +55,18 @@ export function rowToSlot(row: Record<string, unknown>): Slot {
     createdAt: new Date(row.created_at as string).toISOString(),
   };
 }
+
+export function rowToAvailabilityWindow(row: Record<string, unknown>): AvailabilityWindow {
+  return {
+    id: Number(row.id),
+    tutorId: row.tutor_id as string,
+    date: toDateOnlyString(row.date),
+    startTime: normalizeTime(row.start_time),
+    endTime: normalizeTime(row.end_time),
+    createdAt: new Date(row.created_at as string).toISOString(),
+  };
+}
+
 export function rowToNotification(row: Record<string, unknown>): Notification {
   return {
     id: row.id as string,
@@ -74,8 +77,14 @@ export function rowToNotification(row: Record<string, unknown>): Notification {
     createdAt: new Date(row.created_at as string).toISOString(),
   };
 }
+
 function toDateOnlyString(value: unknown): string {
   if (typeof value === 'string') return value.slice(0, 10);
   if (value instanceof Date) return value.toISOString().slice(0, 10);
   return String(value);
+}
+
+// Postgres TIME columns often come back as 'HH:MM:SS'; normalize to 'HH:MM'.
+function normalizeTime(value: unknown): string {
+  return String(value).slice(0, 5);
 }
