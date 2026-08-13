@@ -241,7 +241,9 @@ export default function StudentBrowsePage() {
                       onValueChange={(value) => setSelectedTutorId(value ?? null)}
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select a tutor" />
+                        <SelectValue placeholder="Select a tutor">
+                          {(value: string) => filteredTutors.find((t) => t.id === value)?.name ?? 'Select a tutor'}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {filteredTutors.map((tutor) => (
