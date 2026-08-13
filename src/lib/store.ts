@@ -29,6 +29,15 @@ export type Slot = {
   createdAt: string;
 };
 
+export type AvailabilityWindow = {
+  id: number;
+  tutorId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  createdAt: string;
+};
+
 export type Notification = {
   id: string;
   recipientUserId: string;
@@ -53,17 +62,16 @@ export type AppState = {
   currentUserId: string | null;
   users: Record<string, User>;
   slots: Record<string, Slot>;
+  availabilityWindows: Record<number, AvailabilityWindow>;
   notifications: Record<string, Notification>;
-  // true once the first fetch from the API has completed (success or failure).
   dataLoaded: boolean;
 };
 
-// Window 9: currentUserId is now set from the real Auth.js session (via
-// AuthBridge in src/components/providers.tsx), not from localStorage.
 const EMPTY_STATE: AppState = Object.freeze({
   currentUserId: null,
   users: {},
   slots: {},
+  availabilityWindows: {},
   notifications: {},
   dataLoaded: false,
 }) as AppState;
@@ -112,15 +120,17 @@ async function refresh(): Promise<void> {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
     try {
-      const [users, slots, notifications] = await Promise.all([
+      const [users, slots, windows, notifications] = await Promise.all([
         api<User[]>('/api/users'),
         api<Slot[]>('/api/slots'),
+        api<AvailabilityWindow[]>('/api/availability-windows'),
         api<Notification[]>('/api/notifications'),
       ]);
       snapshot = {
         ...snapshot,
         users: Object.fromEntries(users.map((u) => [u.id, u])),
         slots: Object.fromEntries(slots.map((s) => [s.id, s])),
+        availabilityWindows: Object.fromEntries(windows.map((w) => [w.id, w])),
         notifications: Object.fromEntries(notifications.map((n) => [n.id, n])),
         dataLoaded: true,
       };
@@ -160,13 +170,11 @@ export function refreshState(): Promise<void> {
   return refresh();
 }
 
-// Called only by AuthBridge, driven by the real Auth.js session — never by
-// page code picking an arbitrary id anymore.
 export function setCurrentUser(userId: string | null): void {
   if (snapshot.currentUserId === userId) return;
   snapshot = { ...snapshot, currentUserId: userId };
   emit();
-  if (userId) void refresh(); // pick up this user's row right away post-login
+  if (userId) void refresh();
 }
 
 export function getCurrentUser(): User | null {
@@ -174,10 +182,6 @@ export function getCurrentUser(): User | null {
   return id ? snapshot.users[id] ?? null : null;
 }
 
-// Sets this user's name + role for the first time (or re-sets them). The
-// server derives *which* user from the session — there's no id parameter.
-// Subjects are managed separately, via updateTutorSubjects on the tutor's
-// own profile page, not at onboarding.
 export async function completeOnboarding(name: string, role: Role): Promise<User> {
   const user = await api<User>('/api/users/me', {
     method: 'PATCH',
@@ -188,8 +192,6 @@ export async function completeOnboarding(name: string, role: Role): Promise<User
   return user;
 }
 
-// Lets a tutor replace their full list of subjects (add/remove/edit any
-// number of entries in one call).
 export async function updateTutorSubjects(subjects: TutorSubject[]): Promise<User> {
   const user = await api<User>('/api/users/me', {
     method: 'PATCH',
@@ -282,6 +284,53 @@ export async function setMeetingUrl(slotId: string, meetingUrl: string | null): 
   snapshot = { ...snapshot, slots: { ...snapshot.slots, [slot.id]: slot } };
   emit();
   return slot;
+}
+
+export async function createAvailabilityWindow(input: {
+  tutorId: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+}): Promise<AvailabilityWindow> {
+  const w = await api<AvailabilityWindow>('/api/availability-windows', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  snapshot = { ...snapshot, availabilityWindows: { ...snapshot.availabilityWindows, [w.id]: w } };
+  emit();
+  return w;
+}
+
+export async function deleteAvailabilityWindow(windowId: number): Promise<void> {
+  await api<{ ok: true }>(`/api/availability-windows/${windowId}`, { method: 'DELETE' });
+  const next = { ...snapshot.availabilityWindows };
+  delete next[windowId];
+  snapshot = { ...snapshot, availabilityWindows: next };
+  emit();
+}
+
+// Books a custom-length session (60/90/120 min) carved out of a tutor's
+// open availability window, rather than a pre-made fixed slot.
+export async function bookAvailabilityWindow(input: {
+  tutorId: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+}): Promise<{ slot: Slot; payment: PaymentInfo } | { error: 'not_available' }> {
+  try {
+    const result = await api<{ slot: Slot; payment: PaymentInfo }>('/api/availability-windows/book', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
+    snapshot = { ...snapshot, slots: { ...snapshot.slots, [result.slot.id]: result.slot } };
+    emit();
+    return result;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409) {
+      return { error: 'not_available' };
+    }
+    throw err;
+  }
 }
 
 export function listNotifications(userId: string): Notification[] {
