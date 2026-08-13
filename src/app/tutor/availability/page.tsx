@@ -340,7 +340,7 @@ export default function AvailabilityPage() {
             </Select>
             <Select value={String(newSlotDuration)} onValueChange={(v) => setNewSlotDuration(Number(v))}>
               <SelectTrigger className="w-28" aria-label="Duration">
-                <SelectValue />
+                <SelectValue>{(value: string) => `${value} min`}</SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {DURATION_OPTIONS.map((d) => (
