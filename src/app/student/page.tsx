@@ -6,7 +6,7 @@ import { signOut } from 'next-auth/react';
 import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  bookSlot, useAppState, type Slot, type User, type PaymentInfo,
+  bookSlot, bookAvailabilityWindow, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
 import { ALL_SUBJECTS } from '@/lib/subjects';
 import { useLanguage } from '@/context/LanguageContext';
@@ -19,6 +19,9 @@ import { SubjectRequestModal } from '@/components/student/subject-request-modal'
 import { SlotRequestModal } from '@/components/SlotRequestModal';
 import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
+
+const WINDOW_STEP_MIN = 30;
+const DURATION_OPTIONS = [60, 90, 120];
 
 function isFutureSlot(slot: Slot, now = new Date()): boolean {
   const [y, m, d] = slot.date.split('-').map(Number);
@@ -33,6 +36,34 @@ function formatDDMM(dateStr: string): string {
 function formatWeekday(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'long' });
+}
+function toMinutes(t: string): number {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+function minutesToTime(mins: number): string {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+// A single tutor subject entry can expand into MULTIPLE filterable labels:
+// - "Other" shows the tutor's custom typed subject name instead of "Other"
+// - "University Application Support" splits a comma-separated country/
+//   university list (e.g. "UK, US, Canada") into individual filter options
+// - everything else is just its own subject name
+function expandedSubjectLabels(ts: { subject: string; detail: string | null }): string[] {
+  if (ts.subject === 'Other') {
+    return ts.detail ? [ts.detail] : [];
+  }
+  if (ts.subject === 'University Application Support') {
+    if (ts.detail) {
+      const parts = ts.detail.split(',').map((p) => p.trim()).filter(Boolean);
+      return parts.length > 0 ? parts : ['University Application Support'];
+    }
+    return ['University Application Support'];
+  }
+  return [ts.subject];
 }
 
 export default function StudentBrowsePage() {
@@ -51,17 +82,12 @@ export default function StudentBrowsePage() {
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [slotRequestModalOpen, setSlotRequestModalOpen] = useState(false);
 
-  // Only list subjects actually offered by at least one tutor, in the
-  // fixed list's canonical order. For "Other" entries, show what the tutor
-  // actually typed (their detail text) instead of the literal word "Other".
-  function effectiveSubjectLabel(ts: { subject: string; detail: string | null }): string {
-    return ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject;
-  }
-
   const subjectOptions = useMemo(() => {
     const offered = new Set<string>();
     for (const tutor of tutors) {
-      for (const ts of tutor.subjects) offered.add(effectiveSubjectLabel(ts));
+      for (const ts of tutor.subjects) {
+        for (const label of expandedSubjectLabels(ts)) offered.add(label);
+      }
     }
     const fixed = ALL_SUBJECTS.filter((s) => offered.has(s));
     const custom = Array.from(offered)
@@ -76,7 +102,7 @@ export default function StudentBrowsePage() {
       if (q && !tutor.name.toLowerCase().includes(q)) return false;
       if (
         subjectFilter !== 'all' &&
-        !tutor.subjects.some((ts) => effectiveSubjectLabel(ts) === subjectFilter)
+        !tutor.subjects.some((ts) => expandedSubjectLabels(ts).includes(subjectFilter))
       ) {
         return false;
       }
@@ -106,27 +132,70 @@ export default function StudentBrowsePage() {
       .sort((a, b) => a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date));
   }, [state.slots, selectedTutorId]);
 
-  const daysWithSlots = useMemo<string[]>(() => {
+  const daysWithAvailability = useMemo<string[]>(() => {
     const set = new Set<string>();
     for (const s of freeSlotsForTutor) set.add(s.date);
+    if (selectedTutorId) {
+      for (const w of Object.values(state.availabilityWindows)) {
+        if (w.tutorId === selectedTutorId) set.add(w.date);
+      }
+    }
     return Array.from(set).sort();
-  }, [freeSlotsForTutor]);
+  }, [freeSlotsForTutor, state.availabilityWindows, selectedTutorId]);
 
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   useEffect(() => {
-    if (daysWithSlots.length === 0) { setSelectedDay(null); return; }
-    if (!selectedDay || !daysWithSlots.includes(selectedDay)) setSelectedDay(daysWithSlots[0]);
-  }, [daysWithSlots, selectedDay]);
+    if (daysWithAvailability.length === 0) { setSelectedDay(null); return; }
+    if (!selectedDay || !daysWithAvailability.includes(selectedDay)) setSelectedDay(daysWithAvailability[0]);
+  }, [daysWithAvailability, selectedDay]);
 
-  const currentDayIndex = selectedDay ? daysWithSlots.indexOf(selectedDay) : -1;
+  const currentDayIndex = selectedDay ? daysWithAvailability.indexOf(selectedDay) : -1;
   const canGoPrev = currentDayIndex > 0;
-  const canGoNext = currentDayIndex >= 0 && currentDayIndex < daysWithSlots.length - 1;
-  const goPrev = () => { if (canGoPrev) setSelectedDay(daysWithSlots[currentDayIndex - 1]); };
-  const goNext = () => { if (canGoNext) setSelectedDay(daysWithSlots[currentDayIndex + 1]); };
+  const canGoNext = currentDayIndex >= 0 && currentDayIndex < daysWithAvailability.length - 1;
+  const goPrev = () => { if (canGoPrev) setSelectedDay(daysWithAvailability[currentDayIndex - 1]); };
+  const goNext = () => { if (canGoNext) setSelectedDay(daysWithAvailability[currentDayIndex + 1]); };
 
   const slotsOnDay = useMemo<Slot[]>(() =>
     selectedDay ? freeSlotsForTutor.filter((s) => s.date === selectedDay) : [],
     [freeSlotsForTutor, selectedDay]);
+
+  // --- Part B: custom-length booking from open availability windows ---
+  const [windowDuration, setWindowDuration] = useState<number>(60);
+
+  const windowStartOptionsForDay = useMemo<string[]>(() => {
+    if (!selectedTutorId || !selectedDay) return [];
+    const dayWindows = Object.values(state.availabilityWindows)
+      .filter((w) => w.tutorId === selectedTutorId && w.date === selectedDay);
+    if (dayWindows.length === 0) return [];
+    const daySlotsAll = Object.values(state.slots)
+      .filter((s) => s.tutorId === selectedTutorId && s.date === selectedDay);
+    const now = new Date();
+    const options = new Set<string>();
+    for (const w of dayWindows) {
+      const wStart = toMinutes(w.startTime);
+      const wEnd = toMinutes(w.endTime);
+      for (let tm = wStart; tm + windowDuration <= wEnd; tm += WINDOW_STEP_MIN) {
+        const candidateEnd = tm + windowDuration;
+        const overlapsExisting = daySlotsAll.some((s) => {
+          const sStart = toMinutes(s.startTime);
+          const sEnd = sStart + s.durationMinutes;
+          return tm < sEnd && sStart < candidateEnd;
+        });
+        if (overlapsExisting) continue;
+        if (isFutureSlot({ date: selectedDay, startTime: minutesToTime(tm) } as Slot, now)) {
+          options.add(minutesToTime(tm));
+        }
+      }
+    }
+    return Array.from(options).sort();
+  }, [selectedTutorId, selectedDay, windowDuration, state.availabilityWindows, state.slots]);
+
+  const hasAnyWindowsForDay = useMemo(() => {
+    if (!selectedTutorId || !selectedDay) return false;
+    return Object.values(state.availabilityWindows).some(
+      (w) => w.tutorId === selectedTutorId && w.date === selectedDay
+    );
+  }, [selectedTutorId, selectedDay, state.availabilityWindows]);
 
   const [pendingSlot, setPendingSlot] = useState<Slot | null>(null);
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
@@ -147,6 +216,26 @@ export default function StudentBrowsePage() {
       toast.error("Couldn't reach the server — check your connection and try again.");
     }
     setPendingSlot(null);
+  };
+
+  const handleBookWindow = async (startTime: string) => {
+    if (!selectedTutorId || !selectedDay) return;
+    try {
+      const result = await bookAvailabilityWindow({
+        tutorId: selectedTutorId,
+        date: selectedDay,
+        startTime,
+        durationMinutes: windowDuration,
+      });
+      if ('error' in result) {
+        toast.error('That time was just taken — pick another.');
+      } else {
+        toast.success('Booking confirmed');
+        setPaymentInfo(result.payment);
+      }
+    } catch {
+      toast.error("Couldn't reach the server — check your connection and try again.");
+    }
   };
 
   const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
@@ -256,7 +345,11 @@ export default function StudentBrowsePage() {
                 {selectedTutor && selectedTutor.subjects.length > 0 && (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {selectedTutor.subjects
-                      .map((ts) => effectiveSubjectLabel(ts) + (ts.level ? ` (${ts.level})` : ''))
+                      .map((ts) => {
+                        const labels = expandedSubjectLabels(ts);
+                        const shown = labels.length > 0 ? labels.join(', ') : ts.subject;
+                        return shown + (ts.level ? ` (${ts.level})` : '');
+                      })
                       .join(' · ')}
                   </p>
                 )}
@@ -271,7 +364,7 @@ export default function StudentBrowsePage() {
                 )}
               </div>
 
-              {daysWithSlots.length === 0 ? (
+              {daysWithAvailability.length === 0 ? (
                 <EmptyState>
                   <p>No open slots for {selectedTutor?.name ?? 'this tutor'} right now.</p>
                   <button
@@ -315,18 +408,63 @@ export default function StudentBrowsePage() {
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                    {slotsOnDay.map((slot) => (
-                      <button
-                        key={slot.id}
-                        type="button"
-                        onClick={() => setPendingSlot(slot)}
-                        className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors"
-                      >
-                        {slot.startTime}
-                      </button>
-                    ))}
-                  </div>
+                  {slotsOnDay.length > 0 && (
+                    <div className="mb-6">
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Fixed sessions
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                        {slotsOnDay.map((slot) => (
+                          <button
+                            key={slot.id}
+                            type="button"
+                            onClick={() => setPendingSlot(slot)}
+                            className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors"
+                          >
+                            {slot.startTime}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {hasAnyWindowsForDay && (
+                    <div>
+                      <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        Choose your own length
+                      </p>
+                      <div className="mb-3 w-36">
+                        <Select value={String(windowDuration)} onValueChange={(v) => setWindowDuration(Number(v))}>
+                          <SelectTrigger className="w-full" aria-label="Session length">
+                            <SelectValue>{(value: string) => `${value} min`}</SelectValue>
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DURATION_OPTIONS.map((d) => (
+                              <SelectItem key={d} value={String(d)}>{d} min</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {windowStartOptionsForDay.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          No open availability long enough for {windowDuration} min on this day.
+                        </p>
+                      ) : (
+                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                          {windowStartOptionsForDay.map((startTime) => (
+                            <button
+                              key={startTime}
+                              type="button"
+                              onClick={() => void handleBookWindow(startTime)}
+                              className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors"
+                            >
+                              {startTime}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <button
                     type="button"
