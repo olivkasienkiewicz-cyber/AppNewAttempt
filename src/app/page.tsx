@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { useLanguage } from "@/context/LanguageContext";
@@ -8,8 +9,14 @@ import { useLanguage } from "@/context/LanguageContext";
 export default function HomePage() {
   const { t } = useLanguage();
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+  const role = (session?.user as { role?: 'tutor' | 'student' | null } | undefined)?.role;
+  const dashboardHref = role === 'tutor' ? '/tutor' : role === 'student' ? '/student' : '/post-login';
+  const isSignedIn = status === 'authenticated';
 
   const goToLogin = () => router.push("/login");
+  const goToDashboard = () => router.push(dashboardHref);
 
   return (
     <main className="min-h-screen bg-[#F7F5F0] text-[#12202B]">
@@ -26,20 +33,32 @@ export default function HomePage() {
               {t.home.heroSubtitle}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={goToLogin}
-                className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
-              >
-                {t.home.cta}
-              </button>
-              <button
-                type="button"
-                onClick={goToLogin}
-                className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:border-white/60 transition-colors"
-              >
-                {t.nav.login}
-              </button>
+              {isSignedIn ? (
+                <button
+                  type="button"
+                  onClick={goToDashboard}
+                  className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
+                >
+                  Go to dashboard
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={goToLogin}
+                    className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
+                  >
+                    {t.home.cta}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={goToLogin}
+                    className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:border-white/60 transition-colors"
+                  >
+                    {t.nav.login}
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
@@ -133,13 +152,23 @@ export default function HomePage() {
         <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
           {t.home.closingHeading}
         </h2>
-        <button
-          type="button"
-          onClick={goToLogin}
-          className="mt-6 inline-block rounded-full bg-[#16B8A7] px-8 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
-        >
-          {t.home.cta}
-        </button>
+        {isSignedIn ? (
+          <button
+            type="button"
+            onClick={goToDashboard}
+            className="mt-6 inline-block rounded-full bg-[#16B8A7] px-8 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
+          >
+            Go to dashboard
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={goToLogin}
+            className="mt-6 inline-block rounded-full bg-[#16B8A7] px-8 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
+          >
+            {t.home.cta}
+          </button>
+        )}
       </section>
 
       <SiteFooter />
