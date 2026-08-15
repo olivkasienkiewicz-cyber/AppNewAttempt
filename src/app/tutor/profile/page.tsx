@@ -21,6 +21,12 @@ import {
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/brand/page-header';
 
+// 'Other' is a catch-all: unlike every other subject, a tutor can have many
+// entries with subject === 'Other' at once (each one's real name lives in
+// `detail`). Everywhere we treat "which subjects does this tutor already
+// have" as a uniqueness check, 'Other' has to be excluded from that check.
+const isMultiInstanceSubject = (subject: string) => subject === 'Other';
+
 export default function TutorProfilePage() {
   const state = useAppState();
   const router = useRouter();
@@ -45,8 +51,10 @@ export default function TutorProfilePage() {
     setInitialized(true);
   }, [state.dataLoaded, initialized, router]);
 
+  // 'Other' always stays selectable; every other subject drops off the list
+  // once the tutor already has it.
   const availableToAdd = ALL_SUBJECTS.filter(
-    (s) => !subjects.some((existing) => existing.subject === s)
+    (s) => isMultiInstanceSubject(s) || !subjects.some((existing) => existing.subject === s)
   );
 
   const resetDraft = () => {
@@ -61,6 +69,19 @@ export default function TutorProfilePage() {
       toast.error('Please describe this subject.');
       return;
     }
+    // For 'Other', guard against adding the exact same custom subject twice
+    // (case-insensitive, trimmed) since the backend can no longer catch
+    // this via a plain subject-name dedup check.
+    if (isMultiInstanceSubject(draftSubject)) {
+      const normalizedNew = draftDetail.trim().toLowerCase();
+      const alreadyExists = subjects.some(
+        (s) => s.subject === 'Other' && (s.detail ?? '').trim().toLowerCase() === normalizedNew
+      );
+      if (alreadyExists) {
+        toast.error('You already added that subject.');
+        return;
+      }
+    }
     const entry: TutorSubject = {
       subject: draftSubject,
       level: subjectRequiresLevel(draftSubject) ? (draftLevel ?? null) : null,
@@ -70,8 +91,22 @@ export default function TutorProfilePage() {
     resetDraft();
   };
 
-  const handleRemove = (subjectName: string) => {
-    setSubjects((prev) => prev.filter((s) => s.subject !== subjectName));
+  // Removing a non-'Other' subject is still unambiguous by name. Removing
+  // an 'Other' entry needs to target the specific one the tutor clicked,
+  // since there can be several — matched by identity (subject + detail),
+  // removing only the first match.
+  const handleRemove = (target: TutorSubject) => {
+    setSubjects((prev) => {
+      if (!isMultiInstanceSubject(target.subject)) {
+        return prev.filter((s) => s.subject !== target.subject);
+      }
+      let removed = false;
+      return prev.filter((s) => {
+        if (removed || s.subject !== 'Other' || s.detail !== target.detail) return true;
+        removed = true;
+        return false;
+      });
+    });
   };
 
   const handleSave = async () => {
@@ -104,24 +139,26 @@ export default function TutorProfilePage() {
         <div className="flex flex-col gap-8">
           {subjects.length > 0 && (
             <ul className="space-y-2">
-              {subjects.map((s) => (
+              {subjects.map((s, i) => (
                 <li
-                  key={s.subject}
+                  // Non-'Other' subjects are unique by name; 'Other' entries
+                  // are not, so fall back to index for a stable-enough key.
+                  key={s.subject === 'Other' ? `other-${i}-${s.detail ?? ''}` : s.subject}
                   className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-foreground">
-                      {s.subject}
+                      {s.subject === 'Other' ? (s.detail || 'Other') : s.subject}
                       {s.level ? <span className="text-muted-foreground"> · {s.level}</span> : null}
                     </p>
-                    {s.detail && (
+                    {s.subject !== 'Other' && s.detail && (
                       <p className="truncate text-xs text-muted-foreground">{s.detail}</p>
                     )}
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleRemove(s.subject)}
-                    aria-label={`Remove ${s.subject}`}
+                    onClick={() => handleRemove(s)}
+                    aria-label={`Remove ${s.subject === 'Other' ? (s.detail || 'Other') : s.subject}`}
                     className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   >
                     <X className="h-4 w-4" />
