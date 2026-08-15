@@ -52,6 +52,7 @@ export function rowToSlot(row: Record<string, unknown>): Slot {
     meetingUrl: (row.meeting_url as string | null) ?? null,
     bookedByStudentId: (row.booked_by_student_id as string | null) ?? null,
     bookedAt: row.booked_at ? new Date(row.booked_at as string).toISOString() : null,
+    subject: (row.subject as string | null) ?? null,
     createdAt: new Date(row.created_at as string).toISOString(),
   };
 }
@@ -84,7 +85,6 @@ function toDateOnlyString(value: unknown): string {
   return String(value);
 }
 
-// Postgres TIME columns often come back as 'HH:MM:SS'; normalize to 'HH:MM'.
 function normalizeTime(value: unknown): string {
   return String(value).slice(0, 5);
 }
