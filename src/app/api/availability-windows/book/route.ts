@@ -14,10 +14,10 @@ function toMinutes(t: string): number {
   return h * 60 + m;
 }
 
-// Books a custom-length session (60/90/120 min) starting at a given time,
-// validating it fits entirely inside one of the tutor's declared open
-// windows and doesn't overlap any existing slot (free or booked) that day.
-// The student is taken from the session, never the request body.
+function labelsForUser(user: { subjects: { subject: string; detail: string | null }[] }): string[] {
+  return user.subjects.map((ts) => (ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject));
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -31,11 +31,12 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
-  const { tutorId, date, startTime, durationMinutes } = (body ?? {}) as {
+  const { tutorId, date, startTime, durationMinutes, subject } = (body ?? {}) as {
     tutorId?: unknown;
     date?: unknown;
     startTime?: unknown;
     durationMinutes?: unknown;
+    subject?: unknown;
   };
 
   if (typeof tutorId !== 'string' || !tutorId) {
@@ -49,6 +50,22 @@ export async function POST(req: Request) {
   }
   if (typeof durationMinutes !== 'number' || !ALLOWED_DURATIONS.includes(durationMinutes)) {
     return NextResponse.json({ error: 'invalid_duration' }, { status: 400 });
+  }
+  if (subject !== undefined && subject !== null && typeof subject !== 'string') {
+    return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
+  }
+
+  const tutorRows = await sql`SELECT * FROM users WHERE id = ${tutorId}`;
+  if (tutorRows.length === 0) {
+    return NextResponse.json({ error: 'invalid_tutor' }, { status: 400 });
+  }
+  const tutorUser = rowToUser(tutorRows[0]);
+
+  let normalizedSubject: string | null = null;
+  if (typeof subject === 'string' && subject.trim().length > 0) {
+    if (labelsForUser(tutorUser).includes(subject.trim())) {
+      normalizedSubject = subject.trim();
+    }
   }
 
   const reqStart = toMinutes(startTime);
@@ -79,32 +96,30 @@ export async function POST(req: Request) {
   }
 
   const inserted = await sql`
-    INSERT INTO slots (tutor_id, date, start_time, duration_minutes, status, payment_status, booked_by_student_id, booked_at)
-    VALUES (${tutorId}, ${date}, ${startTime}, ${durationMinutes}, 'booked', 'unpaid', ${studentId}, now())
+    INSERT INTO slots (tutor_id, date, start_time, duration_minutes, status, payment_status, booked_by_student_id, booked_at, subject)
+    VALUES (${tutorId}, ${date}, ${startTime}, ${durationMinutes}, 'booked', 'unpaid', ${studentId}, now(), ${normalizedSubject})
     RETURNING *
   `;
   const slot = rowToSlot(inserted[0]);
 
-  const [studentRows, tutorRows] = await Promise.all([
-    sql`SELECT * FROM users WHERE id = ${studentId}`,
-    sql`SELECT * FROM users WHERE id = ${tutorId}`,
-  ]);
+  const studentRows = await sql`SELECT * FROM users WHERE id = ${studentId}`;
   const student = studentRows[0] ? rowToUser(studentRows[0]) : null;
-  const tutor = tutorRows[0] ? rowToUser(tutorRows[0]) : null;
+  const tutor = tutorUser;
   const studentEmail = studentRows[0]?.email as string | undefined;
   const tutorEmail = tutorRows[0]?.email as string | undefined;
 
   const [, mm, dd] = slot.date.split('-');
   const ddmm = `${dd}.${mm}`;
+  const subjectSuffix = slot.subject ? ` (${slot.subject})` : '';
 
   await Promise.all([
     sql`
       INSERT INTO notifications (recipient_user_id, message, related_slot_id)
-      VALUES (${tutorId}, ${`You have an upcoming meeting with ${student?.name ?? 'a student'} at ${slot.startTime} on ${ddmm}.`}, ${slot.id})
+      VALUES (${tutorId}, ${`You have an upcoming meeting with ${student?.name ?? 'a student'} at ${slot.startTime} on ${ddmm}${subjectSuffix}.`}, ${slot.id})
     `,
     sql`
       INSERT INTO notifications (recipient_user_id, message, related_slot_id)
-      VALUES (${studentId}, ${`You have an upcoming meeting with ${tutor?.name ?? 'a tutor'} at ${slot.startTime} on ${ddmm}.`}, ${slot.id})
+      VALUES (${studentId}, ${`You have an upcoming meeting with ${tutor?.name ?? 'a tutor'} at ${slot.startTime} on ${ddmm}${subjectSuffix}.`}, ${slot.id})
     `,
   ]);
 
@@ -123,7 +138,7 @@ export async function POST(req: Request) {
           html: `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
             <h2>Booking confirmed</h2>
             <p>Hi ${student?.name ?? 'there'},</p>
-            <p>Your session with <strong>${tutor?.name ?? 'your tutor'}</strong> is booked for <strong>${ddmm}</strong> at <strong>${slot.startTime}</strong> (${slot.durationMinutes} min).</p>
+            <p>Your session with <strong>${tutor?.name ?? 'your tutor'}</strong> is booked for <strong>${ddmm}</strong> at <strong>${slot.startTime}</strong> (${slot.durationMinutes} min)${slot.subject ? ` — <strong>${slot.subject}</strong>` : ''}.</p>
             <h3>Payment by bank transfer</h3>
             <table style="width: 100%; border-collapse: collapse;">
               <tr><td style="padding: 4px 0; color: #666;">Account holder</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.accountHolder}</td></tr>
@@ -143,7 +158,7 @@ export async function POST(req: Request) {
           html: `<div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
             <h2>New booking</h2>
             <p>Hi ${tutor?.name ?? 'there'},</p>
-            <p><strong>${student?.name ?? 'A student'}</strong> booked a ${slot.durationMinutes}-minute session with you on <strong>${ddmm}</strong> at <strong>${slot.startTime}</strong>.</p>
+            <p><strong>${student?.name ?? 'A student'}</strong> booked a ${slot.durationMinutes}-minute session with you on <strong>${ddmm}</strong> at <strong>${slot.startTime}</strong>${slot.subject ? ` — <strong>${slot.subject}</strong>` : ''}.</p>
             <p style="color: #666; font-size: 13px;">You can add a meeting link for this session from your slot list in the app.</p>
           </div>`,
         })
@@ -156,6 +171,7 @@ export async function POST(req: Request) {
         <table style="width: 100%; border-collapse: collapse;">
           <tr><td style="padding: 4px 0; color: #666;">Student</td><td style="padding: 4px 0; text-align: right;">${student?.name ?? 'Unknown'} (${studentEmail ?? '—'})</td></tr>
           <tr><td style="padding: 4px 0; color: #666;">Tutor</td><td style="padding: 4px 0; text-align: right;">${tutor?.name ?? 'Unknown'}</td></tr>
+          <tr><td style="padding: 4px 0; color: #666;">Subject</td><td style="padding: 4px 0; text-align: right;">${slot.subject ?? '—'}</td></tr>
           <tr><td style="padding: 4px 0; color: #666;">Date</td><td style="padding: 4px 0; text-align: right;">${ddmm} at ${slot.startTime} (${slot.durationMinutes} min)</td></tr>
           <tr><td style="padding: 4px 0; color: #666;">Amount due</td><td style="padding: 4px 0; text-align: right;">${payment.amount.toFixed(2)} ${payment.currency}</td></tr>
           <tr><td style="padding: 4px 0; color: #666;">Reference code</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
