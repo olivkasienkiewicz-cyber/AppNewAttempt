@@ -39,7 +39,7 @@ export default function HomePage() {
                   onClick={goToDashboard}
                   className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
                 >
-                  Go to dashboard
+                  My Account
                 </button>
               ) : (
                 <>
@@ -158,7 +158,7 @@ export default function HomePage() {
             onClick={goToDashboard}
             className="mt-6 inline-block rounded-full bg-[#16B8A7] px-8 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
           >
-            Go to dashboard
+            My Account
           </button>
         ) : (
           <button
