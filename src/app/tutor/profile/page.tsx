@@ -172,6 +172,11 @@ export default function TutorProfilePage() {
                   placeholder={draftSubject === 'Other' ? 'e.g. Latin' : 'e.g. UK, US, Canada'}
                   className="h-11 text-sm"
                 />
+                {draftSubject === 'University Application Support' && (
+                  <p className="text-xs text-muted-foreground">
+                    Separate multiple countries or universities with commas — each one becomes its own searchable option for students.
+                  </p>
+                )}
               </div>
             )}
 
