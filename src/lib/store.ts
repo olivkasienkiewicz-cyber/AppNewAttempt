@@ -26,6 +26,7 @@ export type Slot = {
   meetingUrl: string | null;
   bookedByStudentId: string | null;
   bookedAt: string | null;
+  subject: string | null;
   createdAt: string;
 };
 
@@ -230,7 +231,7 @@ export function listSlotsForTutor(
 }
 
 export async function createSlot(
-  input: Omit<Slot, 'id' | 'status' | 'paymentStatus' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'createdAt'>
+  input: Omit<Slot, 'id' | 'status' | 'paymentStatus' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'subject' | 'createdAt'>
 ): Promise<Slot> {
   const slot = await api<Slot>('/api/slots', {
     method: 'POST',
@@ -251,12 +252,13 @@ export async function deleteSlot(slotId: string): Promise<void> {
 
 export async function bookSlot(
   slotId: string,
-  studentId: string
+  studentId: string,
+  subject: string | null
 ): Promise<{ slot: Slot; payment: PaymentInfo } | { error: 'slot_taken' }> {
   try {
     const result = await api<{ slot: Slot; notifications: Notification[]; payment: PaymentInfo }>(
       `/api/slots/${slotId}/book`,
-      { method: 'POST', body: JSON.stringify({ studentId }) }
+      { method: 'POST', body: JSON.stringify({ studentId, subject }) }
     );
     snapshot = {
       ...snapshot,
@@ -309,13 +311,12 @@ export async function deleteAvailabilityWindow(windowId: number): Promise<void> 
   emit();
 }
 
-// Books a custom-length session (60/90/120 min) carved out of a tutor's
-// open availability window, rather than a pre-made fixed slot.
 export async function bookAvailabilityWindow(input: {
   tutorId: string;
   date: string;
   startTime: string;
   durationMinutes: number;
+  subject: string | null;
 }): Promise<{ slot: Slot; payment: PaymentInfo } | { error: 'not_available' }> {
   try {
     const result = await api<{ slot: Slot; payment: PaymentInfo }>('/api/availability-windows/book', {
