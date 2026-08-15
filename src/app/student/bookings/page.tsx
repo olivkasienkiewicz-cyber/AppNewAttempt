@@ -144,6 +144,9 @@ export default function StudentBookingsPage() {
                   {formatDayLabel(slot.date)} · {slot.startTime}–{minutesToTime(toMinutes(slot.startTime) + slot.durationMinutes)}
                 </p>
                 <p className="text-xs text-muted-foreground">{tutor?.name ?? 'Tutor'}</p>
+                {slot.subject && (
+                  <p className="text-xs text-muted-foreground">{slot.subject}</p>
+                )}
                 {withinDay && (
                   <p className="mt-2 text-xs text-warning">
                     Less than 24 hours away — cancelling or moving now may still require payment per our policy.
