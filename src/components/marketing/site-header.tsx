@@ -55,7 +55,7 @@ export function SiteHeader() {
               onClick={goToDashboard}
               className="rounded-full bg-[#16B8A7] px-5 py-2 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
             >
-              Dashboard
+              My Account
             </button>
           ) : (
             <>
