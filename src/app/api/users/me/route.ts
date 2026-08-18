@@ -16,6 +16,11 @@ import {
 const MAX_NAME = 40;
 const MAX_SUBJECTS = 20;
 
+// 'Other' is a catch-all: a tutor can have many entries with
+// subject === 'Other' at once (each one's real name lives in `detail`).
+// It must be excluded from the plain subject-name uniqueness check below.
+const isMultiInstanceSubject = (subject: string) => subject === 'Other';
+
 // Completes onboarding for the *currently signed-in* user, and also serves
 // as the general "edit my profile" endpoint. All fields are optional on
 // this call — any field omitted from the body keeps its existing value.
@@ -86,10 +91,16 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
       }
 
-      if (seen.has(subjectName)) {
-        return NextResponse.json({ error: 'duplicate_subject' }, { status: 400 });
+      // 'Other' can legitimately appear multiple times (each with its own
+      // `detail`), so it's excluded from this plain name-based dedup check.
+      // The frontend already guards against exact-duplicate 'Other' entries
+      // by comparing normalized `detail` values.
+      if (!isMultiInstanceSubject(subjectName)) {
+        if (seen.has(subjectName)) {
+          return NextResponse.json({ error: 'duplicate_subject' }, { status: 400 });
+        }
+        seen.add(subjectName);
       }
-      seen.add(subjectName);
 
       let normalizedLevel: string | null = null;
       if (subjectRequiresLevel(subjectName)) {
