@@ -40,10 +40,10 @@ export default function HomePage() {
     <main className="min-h-screen bg-[#F7F5F0] text-[#12202B]">
       <SiteHeader />
 
-      {/* Hero */}
-      <section className="bg-[#0E2A47] text-white">
-        <div className="mx-auto grid max-w-6xl md:grid-cols-[1.2fr_0.8fr] md:items-stretch">
-          <div className="px-6 py-20 md:pr-10">
+    {/* Hero */}
+<section className="bg-[#0E2A47] text-white">
+  <div className="grid md:grid-cols-[1.2fr_0.8fr] md:items-stretch">
+    <div className="px-6 py-20 md:px-10 lg:pl-16">
             <div className="max-w-2xl">
               <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl leading-[1.05] md:text-6xl">
                 {t.home.heroTitle}
