@@ -50,7 +50,6 @@ export function subjectDetailRequired(subject: string): boolean {
   return subject === 'Other' || subject === 'Egzamin ósmoklasisty';
 }
 export const MAX_DETAIL_LEN = 100;
-
 // Subjects a tutor can list more than once, using `detail` to distinguish
 // entries — e.g. two 'Egzamin ósmoklasisty' entries for different exam
 // components (matematyka, angielski), or several custom 'Other' subjects.
@@ -59,18 +58,19 @@ export const MAX_DETAIL_LEN = 100;
 export function isMultiInstanceSubject(subject: string): boolean {
   return subject === 'Other' || subject === 'Egzamin ósmoklasisty';
 }
-
 // Pricing tiers — each subject maps to one hourly rate in PLN.
 export const RATE_IB_PLN = 230;
 export const RATE_IB_ENTRANCE_EXAM_PLN = 160;
 export const RATE_EGZAMIN_OSMOKLASISTY_PLN = 120;
-
+// Subject labels saved on a booked slot can be composite (e.g.
+// "Egzamin ósmoklasisty – matematyka", combining the base subject with the
+// tutor's free-text detail — see labelsForUser() in the booking route), so
+// this matches by prefix rather than exact equality.
 export function hourlyRateForSubject(subject: string): number {
-  if (subject === 'Egzamin ósmoklasisty') return RATE_EGZAMIN_OSMOKLASISTY_PLN;
-  if (subject === 'Egzaminy wstępne do szkół IB') return RATE_IB_ENTRANCE_EXAM_PLN;
+  if (subject.startsWith('Egzamin ósmoklasisty')) return RATE_EGZAMIN_OSMOKLASISTY_PLN;
+  if (subject.startsWith('Egzaminy wstępne do szkół IB')) return RATE_IB_ENTRANCE_EXAM_PLN;
   return RATE_IB_PLN;
 }
-
 export type TutorSubject = {
   subject: string;
   level: string | null;
