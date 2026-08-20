@@ -4,13 +4,11 @@ import { Toaster } from '@/components/ui/sonner';
 import { Providers } from '@/components/providers';
 import { LanguageProvider } from '@/context/LanguageContext';
 import './globals.css';
-
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
 });
-
 const instrumentSerif = Instrument_Serif({
   subsets: ['latin'],
   weight: '400',
@@ -18,16 +16,11 @@ const instrumentSerif = Instrument_Serif({
   variable: '--font-instrument-serif',
   display: 'swap',
 });
-
 export const metadata: Metadata = {
   title: 'Studilly — a calmer way to book tutors',
   description:
     'Studilly pairs students with tutors through a quiet, considered booking experience.',
-  icons: {
-    icon: [{ url: '/brand/favicon.svg', type: 'image/svg+xml' }],
-  },
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{
