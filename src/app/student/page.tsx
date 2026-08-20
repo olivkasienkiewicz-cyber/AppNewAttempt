@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import {
   bookSlot, bookAvailabilityWindow, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
-import { ALL_SUBJECTS } from '@/lib/subjects';
+import { ALL_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,9 +54,6 @@ function minutesToTime(mins: number): string {
 function splitCountries(detail: string | null): string[] {
   if (!detail) return [];
   return detail.split(',').map((p) => p.trim()).filter(Boolean);
-}
-function subjectDisplayLabel(ts: { subject: string; detail: string | null }): string {
-  return ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject;
 }
 
 export default function StudentBrowsePage() {
