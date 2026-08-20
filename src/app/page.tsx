@@ -1,10 +1,20 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { useLanguage } from "@/context/LanguageContext";
+
+type TutorPreview = {
+  id: number;
+  name: string;
+  subject: string;
+  photoUrl: string | null;
+};
 
 export default function HomePage() {
   const { t } = useLanguage();
@@ -17,6 +27,14 @@ export default function HomePage() {
 
   const goToLogin = () => router.push("/login");
   const goToDashboard = () => router.push(dashboardHref);
+
+  const [tutorPreviews, setTutorPreviews] = useState<TutorPreview[]>([]);
+  useEffect(() => {
+    fetch('/api/tutor-profiles')
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: TutorPreview[]) => setTutorPreviews(data))
+      .catch(() => {});
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#F7F5F0] text-[#12202B]">
@@ -31,6 +49,9 @@ export default function HomePage() {
             </h1>
             <p className="mt-6 max-w-lg text-lg text-white/80">
               {t.home.heroSubtitle}
+            </p>
+            <p className="mt-3 max-w-lg text-sm text-white/50">
+              {t.home.additionalServicesNote}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {isSignedIn ? (
@@ -110,24 +131,61 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Meet our tutors */}
+      {tutorPreviews.length > 0 && (
+        <section className="mx-auto max-w-6xl px-6 py-16">
+          <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
+            {t.home.tutorsSectionHeading}
+          </h2>
+          <p className="mt-2 text-[#12202B]/70">{t.home.tutorsSectionSubheading}</p>
+          <div className="mt-6 flex flex-wrap gap-4">
+            {tutorPreviews.map((tutor) => (
+              <div
+                key={tutor.id}
+                title={tutor.name}
+                className="h-16 w-16 overflow-hidden rounded-full bg-[#7CD8C5]/30"
+              >
+                {tutor.photoUrl && (
+                  <Image
+                    src={tutor.photoUrl}
+                    alt={tutor.name}
+                    width={64}
+                    height={64}
+                    className="h-full w-full object-cover"
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          <Link
+            href="/tutors"
+            className="mt-6 inline-block text-sm font-semibold text-[#16B8A7] hover:underline"
+          >
+            {t.home.tutorsSectionCta} →
+          </Link>
+        </section>
+      )}
+
       {/* University application support */}
-      <section className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
-          {t.home.applicationSupportHeading}
-        </h2>
-        <p className="mt-2 text-[#12202B]/70">
-          {t.home.applicationSupportSubheading}
-        </p>
-        <div className="mt-10 grid gap-6 sm:grid-cols-2">
-          {t.home.applicationServices.map((service) => (
-            <div
-              key={service.title}
-              className="rounded-md border border-[#0E2A47]/10 bg-white p-6"
-            >
-              <h3 className="font-semibold text-[#0E2A47]">{service.title}</h3>
-              <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
-            </div>
-          ))}
+      <section className="bg-white py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
+            {t.home.applicationSupportHeading}
+          </h2>
+          <p className="mt-2 text-[#12202B]/70">
+            {t.home.applicationSupportSubheading}
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+            {t.home.applicationServices.map((service) => (
+              <div
+                key={service.title}
+                className="rounded-md border border-[#0E2A47]/10 p-6"
+              >
+                <h3 className="font-semibold text-[#0E2A47]">{service.title}</h3>
+                <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
