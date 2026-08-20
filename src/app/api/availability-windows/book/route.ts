@@ -15,7 +15,11 @@ function toMinutes(t: string): number {
 }
 
 function labelsForUser(user: { subjects: { subject: string; detail: string | null }[] }): string[] {
-  return user.subjects.map((ts) => (ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject));
+  return user.subjects.map((ts) => {
+    if (ts.subject === 'Other' && ts.detail) return ts.detail;
+    if (ts.subject === 'Egzamin ósmoklasisty' && ts.detail) return `Egzamin ósmoklasisty – ${ts.detail}`;
+    return ts.subject;
+  });
 }
 
 export async function POST(req: Request) {
@@ -125,7 +129,7 @@ export async function POST(req: Request) {
 
   const payment = {
     referenceCode: referenceCodeForSlot(slot.id),
-    amount: amountForSlot(slot.durationMinutes),
+    amount: amountForSlot(slot.durationMinutes, slot.subject),
     currency: 'PLN',
     bankDetails: BANK_DETAILS,
   };
