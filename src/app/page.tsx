@@ -24,8 +24,8 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="bg-[#0E2A47] text-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 md:grid-cols-[1.2fr_0.8fr] md:items-center">
-          <div>
+        <div className="mx-auto max-w-6xl px-6 py-20">
+          <div className="max-w-2xl">
             <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl leading-[1.05] md:text-6xl">
               {t.home.heroTitle}
             </h1>
@@ -59,22 +59,6 @@ export default function HomePage() {
                   </button>
                 </>
               )}
-            </div>
-          </div>
-
-          {/* Signature: session-slip card */}
-          <div className="justify-self-start md:justify-self-end">
-            <div className="w-64 rounded-sm bg-[#F7F5F0] p-6 text-[#12202B] shadow-xl">
-              <p className="text-xs uppercase tracking-widest text-[#0E2A47]/60">
-                {t.home.sessionRateLabel}
-              </p>
-              <div className="my-3 border-t border-dashed border-[#0E2A47]/20" />
-              <p className="font-[family-name:var(--font-instrument-serif)] text-4xl text-[#0E2A47]">
-                230 PLN
-              </p>
-              <p className="text-sm text-[#0E2A47]/70">{t.home.sessionRateUnit}</p>
-              <div className="my-3 border-t border-dashed border-[#0E2A47]/20" />
-              <p className="text-xs text-[#0E2A47]/60">{t.home.sessionRateNote}</p>
             </div>
           </div>
         </div>
@@ -126,52 +110,24 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pricing */}
+      {/* University application support */}
       <section className="mx-auto max-w-6xl px-6 py-20">
         <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
-          {t.home.pricingHeading}
+          {t.home.applicationSupportHeading}
         </h2>
-        <p className="mt-2 text-[#12202B]/70">{t.home.pricingSubheading}</p>
-        <div className="mt-10 grid gap-6 sm:grid-cols-3">
-          {t.home.pricingTiers.map((tier) => (
+        <p className="mt-2 text-[#12202B]/70">
+          {t.home.applicationSupportSubheading}
+        </p>
+        <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          {t.home.applicationServices.map((service) => (
             <div
-              key={tier.label}
+              key={service.title}
               className="rounded-md border border-[#0E2A47]/10 bg-white p-6"
             >
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#16B8A7]">
-                {tier.label}
-              </p>
-              <div className="my-3 border-t border-dashed border-[#0E2A47]/15" />
-              <p className="font-[family-name:var(--font-instrument-serif)] text-4xl text-[#0E2A47]">
-                {tier.price}
-              </p>
-              <p className="text-sm text-[#0E2A47]/70">{tier.unit}</p>
-              <p className="mt-3 text-sm text-[#12202B]/70">{tier.note}</p>
+              <h3 className="font-semibold text-[#0E2A47]">{service.title}</h3>
+              <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* University application support */}
-      <section className="bg-white py-20">
-        <div className="mx-auto max-w-6xl px-6">
-          <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
-            {t.home.applicationSupportHeading}
-          </h2>
-          <p className="mt-2 text-[#12202B]/70">
-            {t.home.applicationSupportSubheading}
-          </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2">
-            {t.home.applicationServices.map((service) => (
-              <div
-                key={service.title}
-                className="rounded-md border border-[#0E2A47]/10 p-6"
-              >
-                <h3 className="font-semibold text-[#0E2A47]">{service.title}</h3>
-                <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </section>
 
