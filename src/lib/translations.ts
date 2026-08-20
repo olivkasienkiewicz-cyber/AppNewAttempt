@@ -10,6 +10,7 @@ export type Translations = {
   home: {
     heroTitle: string;
     heroSubtitle: string;
+    additionalServicesNote: string;
     cta: string;
     howItWorksHeading: string;
     steps: { step: string; title: string; body: string }[];
@@ -17,6 +18,9 @@ export type Translations = {
     subjectsSubheading: string;
     hlSlBadge: string;
     groups: { group: string; label: string }[];
+    tutorsSectionHeading: string;
+    tutorsSectionSubheading: string;
+    tutorsSectionCta: string;
     applicationSupportHeading: string;
     applicationSupportSubheading: string;
     applicationServices: { title: string; body: string }[];
@@ -103,6 +107,8 @@ export const translations: Record<"en" | "pl", Translations> = {
       heroTitle: "IB tutoring that actually fits your syllabus.",
       heroSubtitle:
         "Book real IB tutors — by subject, by level, by the hour. No packages, no sales calls. Pick a slot, transfer the fee, get your meeting link.",
+      additionalServicesNote:
+        "Also available: egzamin ósmoklasisty and IB school entrance exam prep.",
       cta: "Get started",
       howItWorksHeading: "How it works",
       steps: [
@@ -138,6 +144,10 @@ export const translations: Record<"en" | "pl", Translations> = {
         { group: "Group 5", label: "Mathematics" },
         { group: "Group 6", label: "The Arts" },
       ],
+      tutorsSectionHeading: "Meet our tutors",
+      tutorsSectionSubheading:
+        "Our tutors come from Bocconi, ESADE, the University of Amsterdam, UCL, the University of Toronto, and many more.",
+      tutorsSectionCta: "See all tutors",
       applicationSupportHeading: "Foreign university application support",
       applicationSupportSubheading:
         "Beyond the IB — help with everything it takes to get in.",
@@ -259,6 +269,8 @@ export const translations: Record<"en" | "pl", Translations> = {
       heroTitle: "Korepetycje IB, które naprawdę pasują do Twojego programu.",
       heroSubtitle:
         "Rezerwuj prawdziwych korepetytorów IB — według przedmiotu, poziomu i godziny. Bez pakietów, bez rozmów sprzedażowych. Wybierz termin, przelej opłatę, otrzymaj link do spotkania.",
+      additionalServicesNote:
+        "Dostępne również: przygotowanie do egzaminu ósmoklasisty oraz egzaminów wstępnych do szkół IB.",
       cta: "Zacznij teraz",
       howItWorksHeading: "Jak to działa",
       steps: [
@@ -294,6 +306,10 @@ export const translations: Record<"en" | "pl", Translations> = {
         { group: "Grupa 5", label: "Matematyka" },
         { group: "Grupa 6", label: "Sztuka" },
       ],
+      tutorsSectionHeading: "Poznaj naszych korepetytorów",
+      tutorsSectionSubheading:
+        "Nasi korepetytorzy pochodzą z Bocconi, ESADE, Uniwersytetu w Amsterdamie, UCL, Uniwersytetu w Toronto i wielu innych.",
+      tutorsSectionCta: "Zobacz wszystkich korepetytorów",
       applicationSupportHeading: "Wsparcie w aplikacji na zagraniczne uczelnie",
       applicationSupportSubheading:
         "Poza IB — pomoc we wszystkim, czego potrzebujesz, by dostać się na wymarzoną uczelnię.",
