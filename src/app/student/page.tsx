@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import {
   bookSlot, bookAvailabilityWindow, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
-import { ALL_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
+import { ALL_SUBJECTS, EGZAMIN_OSMOKLASISTY_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +23,7 @@ import { EmptyState } from '@/components/brand/empty-state';
 const WINDOW_STEP_MIN = 30;
 const DURATION_OPTIONS = [60, 90, 120];
 const UNI_SUPPORT_SUBJECT = 'University Application Support';
+const EGZAMIN_SUBJECT = 'Egzamin ósmoklasisty';
 
 type PendingBooking =
   | { kind: 'fixed'; slot: Slot }
@@ -55,6 +56,14 @@ function splitCountries(detail: string | null): string[] {
   if (!detail) return [];
   return detail.split(',').map((p) => p.trim()).filter(Boolean);
 }
+// For top-level filtering/grouping, 'Egzamin ósmoklasisty' behaves like
+// 'University Application Support' — one category with a secondary picker
+// — rather than the composite "Egzamin ósmoklasisty – Matematyka" label
+// used at booking time (subjectDisplayLabel). Only 'Other' collapses to
+// its detail here.
+function filterCategoryLabel(ts: { subject: string; detail: string | null }): string {
+  return ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject;
+}
 
 export default function StudentBrowsePage() {
   const state = useAppState();
@@ -73,6 +82,7 @@ export default function StudentBrowsePage() {
   const [slotRequestModalOpen, setSlotRequestModalOpen] = useState(false);
 
   const isUniSupportSelected = subjectFilter === UNI_SUPPORT_SUBJECT;
+  const isEgzaminSelected = subjectFilter === EGZAMIN_SUBJECT;
 
   useEffect(() => {
     setLevelFilter('all');
@@ -81,7 +91,7 @@ export default function StudentBrowsePage() {
   const subjectOptions = useMemo(() => {
     const offered = new Set<string>();
     for (const tutor of tutors) {
-      for (const ts of tutor.subjects) offered.add(subjectDisplayLabel(ts));
+      for (const ts of tutor.subjects) offered.add(filterCategoryLabel(ts));
     }
     const fixed = ALL_SUBJECTS.filter((s) => offered.has(s));
     const custom = Array.from(offered)
@@ -103,13 +113,28 @@ export default function StudentBrowsePage() {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [tutors, isUniSupportSelected]);
 
+  const egzaminSubjectOptions = useMemo(() => {
+    if (!isEgzaminSelected) return [];
+    const set = new Set<string>();
+    for (const tutor of tutors) {
+      for (const ts of tutor.subjects) {
+        if (ts.subject === EGZAMIN_SUBJECT && ts.detail) set.add(ts.detail);
+      }
+    }
+    const canonical = EGZAMIN_OSMOKLASISTY_SUBJECTS.filter((s) => set.has(s));
+    const extra = Array.from(set)
+      .filter((s) => !(EGZAMIN_OSMOKLASISTY_SUBJECTS as readonly string[]).includes(s))
+      .sort((a, b) => a.localeCompare(b));
+    return [...canonical, ...extra];
+  }, [tutors, isEgzaminSelected]);
+
   const filteredTutors = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     return tutors.filter((tutor) => {
       if (q && !tutor.name.toLowerCase().includes(q)) return false;
 
       if (subjectFilter !== 'all') {
-        const hasSubject = tutor.subjects.some((ts) => subjectDisplayLabel(ts) === subjectFilter);
+        const hasSubject = tutor.subjects.some((ts) => filterCategoryLabel(ts) === subjectFilter);
         if (!hasSubject) return false;
       }
 
@@ -117,6 +142,13 @@ export default function StudentBrowsePage() {
         if (levelFilter !== 'all') {
           const matches = tutor.subjects.some(
             (ts) => ts.subject === UNI_SUPPORT_SUBJECT && splitCountries(ts.detail).includes(levelFilter)
+          );
+          if (!matches) return false;
+        }
+      } else if (isEgzaminSelected) {
+        if (levelFilter !== 'all') {
+          const matches = tutor.subjects.some(
+            (ts) => ts.subject === EGZAMIN_SUBJECT && ts.detail === levelFilter
           );
           if (!matches) return false;
         }
@@ -129,7 +161,7 @@ export default function StudentBrowsePage() {
 
       return true;
     });
-  }, [tutors, searchText, subjectFilter, levelFilter, isUniSupportSelected]);
+  }, [tutors, searchText, subjectFilter, levelFilter, isUniSupportSelected, isEgzaminSelected]);
 
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   useEffect(() => {
@@ -314,15 +346,31 @@ export default function StudentBrowsePage() {
               </Select>
               <Select value={levelFilter} onValueChange={(value) => setLevelFilter(value ?? 'all')}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder={isUniSupportSelected ? 'Country / University' : t.browse.levelLabel} />
+                  <SelectValue
+                    placeholder={
+                      isUniSupportSelected
+                        ? 'Country / University'
+                        : isEgzaminSelected
+                        ? 'Which subject?'
+                        : t.browse.levelLabel
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">
-                    {isUniSupportSelected ? 'All countries' : t.browse.levelAll}
+                    {isUniSupportSelected
+                      ? 'All countries'
+                      : isEgzaminSelected
+                      ? 'All subjects'
+                      : t.browse.levelAll}
                   </SelectItem>
                   {isUniSupportSelected ? (
                     countryOptions.map((c) => (
                       <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))
+                  ) : isEgzaminSelected ? (
+                    egzaminSubjectOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))
                   ) : (
                     <>
