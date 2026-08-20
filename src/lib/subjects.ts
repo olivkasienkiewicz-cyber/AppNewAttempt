@@ -42,8 +42,8 @@ export function subjectRequiresLevel(subject: string): boolean {
 // all carry a free-text detail field. For University Application Support
 // it's optional context (e.g. "UK, US, Canada"). For "Other" it's required
 // and IS the custom subject name. For "Egzamin ósmoklasisty" it specifies
-// which exam component the tutor teaches (e.g. "Matematyka") — selected
-// from EGZAMIN_OSMOKLASISTY_SUBJECTS rather than typed freely.
+// which exam component the tutor teaches — selected from
+// EGZAMIN_OSMOKLASISTY_SUBJECTS rather than typed freely.
 export function subjectSupportsDetail(subject: string): boolean {
   return (
     subject === 'University Application Support' ||
@@ -64,7 +64,8 @@ export const MAX_DETAIL_LEN = 100;
 export function isMultiInstanceSubject(subject: string): boolean {
   return subject === 'Other' || subject === 'Egzamin ósmoklasisty';
 }
-// Pricing tiers — each subject maps to one hourly rate in PLN.
+
+// --- Student-facing pricing (what students pay per hour) ---
 export const RATE_IB_PLN = 230;
 export const RATE_IB_ENTRANCE_EXAM_PLN = 160;
 export const RATE_EGZAMIN_OSMOKLASISTY_PLN = 120;
@@ -77,6 +78,19 @@ export function hourlyRateForSubject(subject: string): number {
   if (subject.startsWith('Egzaminy wstępne do szkół IB')) return RATE_IB_ENTRANCE_EXAM_PLN;
   return RATE_IB_PLN;
 }
+
+// --- Tutor payout rates (what tutors are paid per hour) ---
+// Separate rate schedule from the student-facing prices above — the
+// difference between the two is the platform's margin per session.
+export const TUTOR_RATE_IB_PLN = 100;
+export const TUTOR_RATE_IB_ENTRANCE_EXAM_PLN = 80;
+export const TUTOR_RATE_EGZAMIN_OSMOKLASISTY_PLN = 80;
+export function tutorPayoutRateForSubject(subject: string): number {
+  if (subject.startsWith('Egzamin ósmoklasisty')) return TUTOR_RATE_EGZAMIN_OSMOKLASISTY_PLN;
+  if (subject.startsWith('Egzaminy wstępne do szkół IB')) return TUTOR_RATE_IB_ENTRANCE_EXAM_PLN;
+  return TUTOR_RATE_IB_PLN;
+}
+
 // Single source of truth for turning a tutor's subject entry into the
 // human-readable label shown to students and used as the canonical
 // subject string on bookings. Must produce identical output everywhere
