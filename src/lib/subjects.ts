@@ -51,6 +51,15 @@ export function subjectDetailRequired(subject: string): boolean {
 }
 export const MAX_DETAIL_LEN = 100;
 
+// Subjects a tutor can list more than once, using `detail` to distinguish
+// entries — e.g. two 'Egzamin ósmoklasisty' entries for different exam
+// components (matematyka, angielski), or several custom 'Other' subjects.
+// Everywhere "does this tutor already have subject X" is checked, these
+// need identity-by-(subject + detail) instead of identity-by-subject-alone.
+export function isMultiInstanceSubject(subject: string): boolean {
+  return subject === 'Other' || subject === 'Egzamin ósmoklasisty';
+}
+
 // Pricing tiers — each subject maps to one hourly rate in PLN.
 export const RATE_IB_PLN = 230;
 export const RATE_IB_ENTRANCE_EXAM_PLN = 160;
