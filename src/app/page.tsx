@@ -42,45 +42,60 @@ export default function HomePage() {
 
       {/* Hero */}
       <section className="bg-[#0E2A47] text-white">
-        <div className="mx-auto max-w-6xl px-6 py-20">
-          <div className="max-w-2xl">
-            <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl leading-[1.05] md:text-6xl">
-              {t.home.heroTitle}
-            </h1>
-            <p className="mt-6 max-w-lg text-lg text-white/80">
-              {t.home.heroSubtitle}
-            </p>
-            <p className="mt-3 max-w-lg text-sm text-white/50">
-              {t.home.additionalServicesNote}
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              {isSignedIn ? (
-                <button
-                  type="button"
-                  onClick={goToDashboard}
-                  className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
-                >
-                  My Account
-                </button>
-              ) : (
-                <>
+        <div className="mx-auto grid max-w-6xl md:grid-cols-[1.2fr_0.8fr] md:items-stretch">
+          <div className="px-6 py-20 md:pr-10">
+            <div className="max-w-2xl">
+              <h1 className="font-[family-name:var(--font-instrument-serif)] text-5xl leading-[1.05] md:text-6xl">
+                {t.home.heroTitle}
+              </h1>
+              <p className="mt-6 max-w-lg text-lg text-white/80">
+                {t.home.heroSubtitle}
+              </p>
+              <p className="mt-3 max-w-lg text-sm text-white/50">
+                {t.home.additionalServicesNote}
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                {isSignedIn ? (
                   <button
                     type="button"
-                    onClick={goToLogin}
+                    onClick={goToDashboard}
                     className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
                   >
-                    {t.home.cta}
+                    My Account
                   </button>
-                  <button
-                    type="button"
-                    onClick={goToLogin}
-                    className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:border-white/60 transition-colors"
-                  >
-                    {t.nav.login}
-                  </button>
-                </>
-              )}
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={goToLogin}
+                      className="rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white hover:bg-[#129888] transition-colors"
+                    >
+                      {t.home.cta}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={goToLogin}
+                      className="rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white hover:border-white/60 transition-colors"
+                    >
+                      {t.nav.login}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
+          </div>
+
+          {/* Duotone student photo panel */}
+          <div className="relative min-h-[220px] overflow-hidden md:min-h-0">
+            <Image
+              src="/brand/hero-students.jpg"
+              alt="Students studying together"
+              fill
+              className="object-cover grayscale contrast-125"
+              priority
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-[#0E2A47]/75 via-[#0E2A47]/60 to-[#16B8A7]/55 mix-blend-multiply" />
+            <div className="absolute inset-0 bg-[#0E2A47]/35" />
           </div>
         </div>
       </section>
