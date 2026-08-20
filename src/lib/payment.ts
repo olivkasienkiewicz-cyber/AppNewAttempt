@@ -1,3 +1,5 @@
+import { hourlyRateForSubject } from './subjects';
+
 // Placeholder bank details — replace with real account info before launch.
 export const BANK_DETAILS = {
   accountHolder: 'Studilly - Olivia Sienkiewicz',
@@ -5,14 +7,17 @@ export const BANK_DETAILS = {
   bankName: 'ING Bank Śląski',
 } as const;
 
-export const HOURLY_RATE_PLN = 230;
-
 export function referenceCodeForSlot(slotId: string): string {
   return `STUDILLY-${slotId.slice(0, 8).toUpperCase()}`;
 }
 
-export function amountForSlot(durationMinutes: number): number {
-  return Math.round((durationMinutes / 60) * HOURLY_RATE_PLN * 100) / 100;
+// Rate now depends on the session's subject — IB coursework, IB entrance
+// exam prep, and egzamin ósmoklasisty are priced differently. Falls back
+// to the standard IB rate for null/unrecognized subjects (see
+// hourlyRateForSubject in subjects.ts for the exact matching rules).
+export function amountForSlot(durationMinutes: number, subject: string | null): number {
+  const rate = hourlyRateForSubject(subject ?? '');
+  return Math.round((durationMinutes / 60) * rate * 100) / 100;
 }
 
 export const ADMIN_EMAIL = 'olivkasienkiewicz@gmail.com';
