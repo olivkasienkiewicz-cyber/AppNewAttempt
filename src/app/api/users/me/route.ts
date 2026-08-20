@@ -7,6 +7,7 @@ import {
   ALL_SUBJECTS,
   LEVEL_OPTIONS,
   MAX_DETAIL_LEN,
+  isMultiInstanceSubject,
   subjectDetailRequired,
   subjectRequiresLevel,
   subjectSupportsDetail,
@@ -16,16 +17,6 @@ import {
 const MAX_NAME = 40;
 const MAX_SUBJECTS = 20;
 
-// 'Other' is a catch-all: a tutor can have many entries with
-// subject === 'Other' at once (each one's real name lives in `detail`).
-// It must be excluded from the plain subject-name uniqueness check below.
-const isMultiInstanceSubject = (subject: string) => subject === 'Other';
-
-// Completes onboarding for the *currently signed-in* user, and also serves
-// as the general "edit my profile" endpoint. All fields are optional on
-// this call — any field omitted from the body keeps its existing value.
-// There is no id in the request body — the row to update comes entirely
-// from the session, so there's no way to edit someone else's account.
 export async function PATCH(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -91,17 +82,6 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
       }
 
-      // 'Other' can legitimately appear multiple times (each with its own
-      // `detail`), so it's excluded from this plain name-based dedup check.
-      // The frontend already guards against exact-duplicate 'Other' entries
-      // by comparing normalized `detail` values.
-      if (!isMultiInstanceSubject(subjectName)) {
-        if (seen.has(subjectName)) {
-          return NextResponse.json({ error: 'duplicate_subject' }, { status: 400 });
-        }
-        seen.add(subjectName);
-      }
-
       let normalizedLevel: string | null = null;
       if (subjectRequiresLevel(subjectName)) {
         if (level !== null && level !== undefined) {
@@ -129,6 +109,18 @@ export async function PATCH(req: Request) {
       } else if (detail !== null && detail !== undefined) {
         return NextResponse.json({ error: 'invalid_detail' }, { status: 400 });
       }
+
+      // Dedup key: for multi-instance subjects, include the normalized
+      // detail so distinct entries (different custom subjects, different
+      // exam components) don't collide; for everything else, the subject
+      // name alone is still the unique identity.
+      const dedupKey = isMultiInstanceSubject(subjectName)
+        ? `${subjectName}:${(normalizedDetail ?? '').toLowerCase()}`
+        : subjectName;
+      if (seen.has(dedupKey)) {
+        return NextResponse.json({ error: 'duplicate_subject' }, { status: 400 });
+      }
+      seen.add(dedupKey);
 
       validated.push({ subject: subjectName, level: normalizedLevel, detail: normalizedDetail });
     }
