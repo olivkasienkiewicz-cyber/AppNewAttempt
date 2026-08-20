@@ -19,6 +19,9 @@ export type Translations = {
     subjectsSubheading: string;
     hlSlBadge: string;
     groups: { group: string; label: string }[];
+    pricingHeading: string;
+    pricingSubheading: string;
+    pricingTiers: { label: string; price: string; unit: string; note: string }[];
     applicationSupportHeading: string;
     applicationSupportSubheading: string;
     applicationServices: { title: string; body: string }[];
@@ -100,7 +103,7 @@ export const translations: Record<"en" | "pl", Translations> = {
         "Book real IB tutors — by subject, by level, by the hour. No packages, no sales calls. Pick a slot, transfer the fee, get your meeting link.",
       cta: "Get started",
       sessionRateLabel: "Session rate",
-      sessionRateUnit: "per hour, any subject",
+      sessionRateUnit: "per hour, any IB subject",
       sessionRateNote: "Confirmed by bank transfer · Meeting link on booking",
       howItWorksHeading: "How it works",
       steps: [
@@ -117,7 +120,7 @@ export const translations: Record<"en" | "pl", Translations> = {
         {
           step: "3",
           title: "Bank transfer",
-          body: "Pay 230 PLN by bank transfer. We confirm it manually, fast.",
+          body: "Pay by bank transfer. We confirm it manually, fast.",
         },
         {
           step: "4",
@@ -135,6 +138,28 @@ export const translations: Record<"en" | "pl", Translations> = {
         { group: "Group 4", label: "Sciences" },
         { group: "Group 5", label: "Mathematics" },
         { group: "Group 6", label: "The Arts" },
+      ],
+      pricingHeading: "Simple, transparent pricing",
+      pricingSubheading: "One flat rate per session type — no packages, no hidden fees.",
+      pricingTiers: [
+        {
+          label: "IB subjects",
+          price: "230 PLN",
+          unit: "per hour",
+          note: "All six subject groups, HL & SL",
+        },
+        {
+          label: "IB school entrance exams",
+          price: "160 PLN",
+          unit: "per hour",
+          note: "Prep for admission into IB programmes",
+        },
+        {
+          label: "Egzamin ósmoklasisty",
+          price: "120 PLN",
+          unit: "per hour",
+          note: "Polish 8th-grade exam preparation",
+        },
       ],
       applicationSupportHeading: "Foreign university application support",
       applicationSupportSubheading:
@@ -233,7 +258,7 @@ export const translations: Record<"en" | "pl", Translations> = {
         "Rezerwuj prawdziwych korepetytorów IB — według przedmiotu, poziomu i godziny. Bez pakietów, bez rozmów sprzedażowych. Wybierz termin, przelej opłatę, otrzymaj link do spotkania.",
       cta: "Zacznij teraz",
       sessionRateLabel: "Stawka za sesję",
-      sessionRateUnit: "za godzinę, dowolny przedmiot",
+      sessionRateUnit: "za godzinę, dowolny przedmiot IB",
       sessionRateNote: "Potwierdzane przelewem bankowym · Link do spotkania po rezerwacji",
       howItWorksHeading: "Jak to działa",
       steps: [
@@ -250,7 +275,7 @@ export const translations: Record<"en" | "pl", Translations> = {
         {
           step: "3",
           title: "Przelew bankowy",
-          body: "Zapłać 230 PLN przelewem bankowym. Potwierdzamy go ręcznie i szybko.",
+          body: "Zapłać przelewem bankowym. Potwierdzamy go ręcznie i szybko.",
         },
         {
           step: "4",
@@ -268,6 +293,28 @@ export const translations: Record<"en" | "pl", Translations> = {
         { group: "Grupa 4", label: "Nauki ścisłe i przyrodnicze" },
         { group: "Grupa 5", label: "Matematyka" },
         { group: "Grupa 6", label: "Sztuka" },
+      ],
+      pricingHeading: "Proste, przejrzyste ceny",
+      pricingSubheading: "Jedna stała stawka za typ zajęć — bez pakietów, bez ukrytych opłat.",
+      pricingTiers: [
+        {
+          label: "Przedmioty IB",
+          price: "230 PLN",
+          unit: "za godzinę",
+          note: "Wszystkie sześć grup przedmiotowych, HL i SL",
+        },
+        {
+          label: "Egzaminy wstępne do szkół IB",
+          price: "160 PLN",
+          unit: "za godzinę",
+          note: "Przygotowanie do rekrutacji do programu IB",
+        },
+        {
+          label: "Egzamin ósmoklasisty",
+          price: "120 PLN",
+          unit: "za godzinę",
+          note: "Przygotowanie do egzaminu ósmoklasisty",
+        },
       ],
       applicationSupportHeading: "Wsparcie w aplikacji na zagraniczne uczelnie",
       applicationSupportSubheading:
