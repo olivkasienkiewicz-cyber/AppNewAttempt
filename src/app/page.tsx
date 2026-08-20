@@ -86,7 +86,7 @@ export default function HomePage() {
           </div>
 
           {/* Duotone student photo panel */}
-          <div className="relative min-h-[220px] overflow-hidden md:min-h-0">
+          <div className="relative min-h-[360px] overflow-hidden md:min-h-[440px]">
             <Image
               src="/brand/hero-students.jpg"
               alt="Students studying together"
