@@ -49,6 +49,12 @@ export function SiteHeader() {
           >
             {t.nav.opinions}
           </Link>
+          <Link
+            href="/pricing"
+            className="text-sm font-medium text-[#0E2A47] hover:text-[#16B8A7] transition-colors"
+          >
+            {t.nav.pricing}
+          </Link>
           {isSignedIn ? (
             <button
               type="button"
