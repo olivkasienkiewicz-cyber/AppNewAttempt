@@ -126,24 +126,52 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* University application support */}
+      {/* Pricing */}
       <section className="mx-auto max-w-6xl px-6 py-20">
         <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
-          {t.home.applicationSupportHeading}
+          {t.home.pricingHeading}
         </h2>
-        <p className="mt-2 text-[#12202B]/70">
-          {t.home.applicationSupportSubheading}
-        </p>
-        <div className="mt-10 grid gap-6 sm:grid-cols-2">
-          {t.home.applicationServices.map((service) => (
+        <p className="mt-2 text-[#12202B]/70">{t.home.pricingSubheading}</p>
+        <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          {t.home.pricingTiers.map((tier) => (
             <div
-              key={service.title}
+              key={tier.label}
               className="rounded-md border border-[#0E2A47]/10 bg-white p-6"
             >
-              <h3 className="font-semibold text-[#0E2A47]">{service.title}</h3>
-              <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#16B8A7]">
+                {tier.label}
+              </p>
+              <div className="my-3 border-t border-dashed border-[#0E2A47]/15" />
+              <p className="font-[family-name:var(--font-instrument-serif)] text-4xl text-[#0E2A47]">
+                {tier.price}
+              </p>
+              <p className="text-sm text-[#0E2A47]/70">{tier.unit}</p>
+              <p className="mt-3 text-sm text-[#12202B]/70">{tier.note}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* University application support */}
+      <section className="bg-white py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <h2 className="font-[family-name:var(--font-instrument-serif)] text-3xl text-[#0E2A47]">
+            {t.home.applicationSupportHeading}
+          </h2>
+          <p className="mt-2 text-[#12202B]/70">
+            {t.home.applicationSupportSubheading}
+          </p>
+          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+            {t.home.applicationServices.map((service) => (
+              <div
+                key={service.title}
+                className="rounded-md border border-[#0E2A47]/10 p-6"
+              >
+                <h3 className="font-semibold text-[#0E2A47]">{service.title}</h3>
+                <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
