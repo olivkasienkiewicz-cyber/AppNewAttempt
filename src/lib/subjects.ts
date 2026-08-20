@@ -64,12 +64,22 @@ export const RATE_IB_ENTRANCE_EXAM_PLN = 160;
 export const RATE_EGZAMIN_OSMOKLASISTY_PLN = 120;
 // Subject labels saved on a booked slot can be composite (e.g.
 // "Egzamin ósmoklasisty – matematyka", combining the base subject with the
-// tutor's free-text detail — see labelsForUser() in the booking route), so
-// this matches by prefix rather than exact equality.
+// tutor's free-text detail — see subjectDisplayLabel below), so this
+// matches by prefix rather than exact equality.
 export function hourlyRateForSubject(subject: string): number {
   if (subject.startsWith('Egzamin ósmoklasisty')) return RATE_EGZAMIN_OSMOKLASISTY_PLN;
   if (subject.startsWith('Egzaminy wstępne do szkół IB')) return RATE_IB_ENTRANCE_EXAM_PLN;
   return RATE_IB_PLN;
+}
+// Single source of truth for turning a tutor's subject entry into the
+// human-readable label shown to students and used as the canonical
+// subject string on bookings. Must produce identical output everywhere
+// this is called — API routes validate booked subjects by checking this
+// exact string against the tutor's labels.
+export function subjectDisplayLabel(ts: { subject: string; detail: string | null }): string {
+  if (ts.subject === 'Other' && ts.detail) return ts.detail;
+  if (ts.subject === 'Egzamin ósmoklasisty' && ts.detail) return `Egzamin ósmoklasisty – ${ts.detail}`;
+  return ts.subject;
 }
 export type TutorSubject = {
   subject: string;
