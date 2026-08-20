@@ -8,6 +8,7 @@ import {
   ALL_SUBJECTS,
   LEVEL_OPTIONS,
   MAX_DETAIL_LEN,
+  isMultiInstanceSubject,
   subjectDetailRequired,
   subjectRequiresLevel,
   subjectSupportsDetail,
@@ -20,12 +21,6 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { PageHeader } from '@/components/brand/page-header';
-
-// 'Other' is a catch-all: unlike every other subject, a tutor can have many
-// entries with subject === 'Other' at once (each one's real name lives in
-// `detail`). Everywhere we treat "which subjects does this tutor already
-// have" as a uniqueness check, 'Other' has to be excluded from that check.
-const isMultiInstanceSubject = (subject: string) => subject === 'Other';
 
 export default function TutorProfilePage() {
   const state = useAppState();
@@ -51,8 +46,8 @@ export default function TutorProfilePage() {
     setInitialized(true);
   }, [state.dataLoaded, initialized, router]);
 
-  // 'Other' always stays selectable; every other subject drops off the list
-  // once the tutor already has it.
+  // Multi-instance subjects always stay selectable; every other subject
+  // drops off the list once the tutor already has it.
   const availableToAdd = ALL_SUBJECTS.filter(
     (s) => isMultiInstanceSubject(s) || !subjects.some((existing) => existing.subject === s)
   );
@@ -69,13 +64,13 @@ export default function TutorProfilePage() {
       toast.error('Please describe this subject.');
       return;
     }
-    // For 'Other', guard against adding the exact same custom subject twice
-    // (case-insensitive, trimmed) since the backend can no longer catch
-    // this via a plain subject-name dedup check.
+    // For multi-instance subjects, guard against adding the exact same
+    // (subject, detail) combination twice (case-insensitive, trimmed),
+    // since the backend can't catch this via a plain subject-name check.
     if (isMultiInstanceSubject(draftSubject)) {
       const normalizedNew = draftDetail.trim().toLowerCase();
       const alreadyExists = subjects.some(
-        (s) => s.subject === 'Other' && (s.detail ?? '').trim().toLowerCase() === normalizedNew
+        (s) => s.subject === draftSubject && (s.detail ?? '').trim().toLowerCase() === normalizedNew
       );
       if (alreadyExists) {
         toast.error('You already added that subject.');
@@ -91,10 +86,10 @@ export default function TutorProfilePage() {
     resetDraft();
   };
 
-  // Removing a non-'Other' subject is still unambiguous by name. Removing
-  // an 'Other' entry needs to target the specific one the tutor clicked,
-  // since there can be several — matched by identity (subject + detail),
-  // removing only the first match.
+  // Removing a non-multi-instance subject is unambiguous by name. Removing
+  // a multi-instance entry needs to target the specific one the tutor
+  // clicked, since there can be several — matched by identity
+  // (subject + detail), removing only the first match.
   const handleRemove = (target: TutorSubject) => {
     setSubjects((prev) => {
       if (!isMultiInstanceSubject(target.subject)) {
@@ -102,7 +97,7 @@ export default function TutorProfilePage() {
       }
       let removed = false;
       return prev.filter((s) => {
-        if (removed || s.subject !== 'Other' || s.detail !== target.detail) return true;
+        if (removed || s.subject !== target.subject || s.detail !== target.detail) return true;
         removed = true;
         return false;
       });
@@ -141,9 +136,10 @@ export default function TutorProfilePage() {
             <ul className="space-y-2">
               {subjects.map((s, i) => (
                 <li
-                  // Non-'Other' subjects are unique by name; 'Other' entries
-                  // are not, so fall back to index for a stable-enough key.
-                  key={s.subject === 'Other' ? `other-${i}-${s.detail ?? ''}` : s.subject}
+                  // Non-multi-instance subjects are unique by name;
+                  // multi-instance entries are not, so fall back to index
+                  // for a stable-enough key.
+                  key={isMultiInstanceSubject(s.subject) ? `${s.subject}-${i}-${s.detail ?? ''}` : s.subject}
                   className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
                 >
                   <div className="min-w-0">
@@ -200,13 +196,23 @@ export default function TutorProfilePage() {
             {draftSubject && subjectSupportsDetail(draftSubject) && (
               <div className="flex flex-col gap-2">
                 <Label className="text-xs text-muted-foreground">
-                  {draftSubject === 'Other' ? 'What subject? (required)' : 'Countries / universities (optional)'}
+                  {draftSubject === 'Other'
+                    ? 'What subject? (required)'
+                    : draftSubject === 'Egzamin ósmoklasisty'
+                    ? 'Which subject? (required)'
+                    : 'Countries / universities (optional)'}
                 </Label>
                 <Input
                   value={draftDetail}
                   onChange={(e) => setDraftDetail(e.target.value)}
                   maxLength={MAX_DETAIL_LEN}
-                  placeholder={draftSubject === 'Other' ? 'e.g. Latin' : 'e.g. UK, US, Canada'}
+                  placeholder={
+                    draftSubject === 'Other'
+                      ? 'e.g. Latin'
+                      : draftSubject === 'Egzamin ósmoklasisty'
+                      ? 'e.g. matematyka'
+                      : 'e.g. UK, US, Canada'
+                  }
                   className="h-11 text-sm"
                 />
                 {draftSubject === 'University Application Support' && (
