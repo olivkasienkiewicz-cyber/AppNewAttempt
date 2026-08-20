@@ -6,6 +6,7 @@ import { X } from 'lucide-react';
 import { getCurrentUser, updateTutorSubjects, useAppState } from '@/lib/store';
 import {
   ALL_SUBJECTS,
+  EGZAMIN_OSMOKLASISTY_SUBJECTS,
   LEVEL_OPTIONS,
   MAX_DETAIL_LEN,
   isMultiInstanceSubject,
@@ -202,19 +203,26 @@ export default function TutorProfilePage() {
                     ? 'Which subject? (required)'
                     : 'Countries / universities (optional)'}
                 </Label>
-                <Input
-                  value={draftDetail}
-                  onChange={(e) => setDraftDetail(e.target.value)}
-                  maxLength={MAX_DETAIL_LEN}
-                  placeholder={
-                    draftSubject === 'Other'
-                      ? 'e.g. Latin'
-                      : draftSubject === 'Egzamin ósmoklasisty'
-                      ? 'e.g. matematyka'
-                      : 'e.g. UK, US, Canada'
-                  }
-                  className="h-11 text-sm"
-                />
+                {draftSubject === 'Egzamin ósmoklasisty' ? (
+                  <Select value={draftDetail || undefined} onValueChange={(value) => setDraftDetail(value ?? '')}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a subject" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EGZAMIN_OSMOKLASISTY_SUBJECTS.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    value={draftDetail}
+                    onChange={(e) => setDraftDetail(e.target.value)}
+                    maxLength={MAX_DETAIL_LEN}
+                    placeholder={draftSubject === 'Other' ? 'e.g. Latin' : 'e.g. UK, US, Canada'}
+                    className="h-11 text-sm"
+                  />
+                )}
                 {draftSubject === 'University Application Support' && (
                   <p className="text-xs text-muted-foreground">
                     Separate multiple countries or universities with commas — each one becomes its own searchable option for students.
