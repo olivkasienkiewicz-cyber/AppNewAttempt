@@ -27,9 +27,9 @@ export function SiteFooter() {
                 </a>
               </li>
               <li>
-                <a href="mailto:olivkasienkiewicz@gmail.com" className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors">
+                <a href="mailto:olivia@studilly.com" className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors">
                   <Mail className="w-4 h-4 text-[#7CD8C5]" strokeWidth={1.75} />
-                  olivkasienkiewicz@gmail.com
+                  olivia@studilly.com
                 </a>
               </li>
             </ul>
@@ -58,3 +58,4 @@ export function SiteFooter() {
     </footer>
   );
 }
+
