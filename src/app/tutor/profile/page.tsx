@@ -7,6 +7,7 @@ import { getCurrentUser, updateTutorSubjects, useAppState } from '@/lib/store';
 import {
   ALL_SUBJECTS,
   EGZAMIN_OSMOKLASISTY_SUBJECTS,
+  POLSKA_MATURA_SUBJECTS,
   LEVEL_OPTIONS,
   MAX_DETAIL_LEN,
   isMultiInstanceSubject,
@@ -201,6 +202,8 @@ export default function TutorProfilePage() {
                     ? 'What subject? (required)'
                     : draftSubject === 'Egzamin ósmoklasisty'
                     ? 'Which subject? (required)'
+                    : draftSubject === 'Polska Matura'
+                    ? 'Which subject and level? (required)'
                     : 'Countries / universities (optional)'}
                 </Label>
                 {draftSubject === 'Egzamin ósmoklasisty' ? (
@@ -210,6 +213,17 @@ export default function TutorProfilePage() {
                     </SelectTrigger>
                     <SelectContent>
                       {EGZAMIN_OSMOKLASISTY_SUBJECTS.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : draftSubject === 'Polska Matura' ? (
+                  <Select value={draftDetail || undefined} onValueChange={(value) => setDraftDetail(value ?? '')}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select subject and level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {POLSKA_MATURA_SUBJECTS.map((s) => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
