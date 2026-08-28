@@ -95,6 +95,8 @@ export const RATE_IB_ENTRANCE_EXAM_PLN = 160;
 export const RATE_EGZAMIN_OSMOKLASISTY_PLN = 120;
 export const RATE_MATURA_PODSTAWOWY_PLN = 160;
 export const RATE_MATURA_ROZSZERZONY_PLN = 180;
+export const RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN = 300;
+export const RATE_SAT_PREPARATION_PLN = 250;
 // Subject labels saved on a booked slot can be composite (e.g.
 // "Egzamin ósmoklasisty – Matematyka" or "Polska Matura – Matematyka –
 // poziom rozszerzony", combining the base subject with the tutor's
@@ -108,6 +110,8 @@ export function hourlyRateForSubject(subject: string): number {
   if (subject.startsWith('Polska Matura')) {
     return subject.includes('poziom rozszerzony') ? RATE_MATURA_ROZSZERZONY_PLN : RATE_MATURA_PODSTAWOWY_PLN;
   }
+  if (subject.startsWith('University Application Support')) return RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN;
+  if (subject.startsWith('SAT Preparation')) return RATE_SAT_PREPARATION_PLN;
   return RATE_IB_PLN;
 }
 
@@ -121,10 +125,14 @@ export const TUTOR_RATE_EGZAMIN_OSMOKLASISTY_PLN = 80;
 // margin is larger on poziom rozszerzony (80 PLN vs 100 PLN payout)
 // since the student price is higher but the tutor rate doesn't change.
 export const TUTOR_RATE_MATURA_PLN = 100;
+export const TUTOR_RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN = 100;
+export const TUTOR_RATE_SAT_PREPARATION_PLN = 100;
 export function tutorPayoutRateForSubject(subject: string): number {
   if (subject.startsWith('Egzamin ósmoklasisty')) return TUTOR_RATE_EGZAMIN_OSMOKLASISTY_PLN;
   if (subject.startsWith('Egzaminy wstępne do szkół IB')) return TUTOR_RATE_IB_ENTRANCE_EXAM_PLN;
   if (subject.startsWith('Polska Matura')) return TUTOR_RATE_MATURA_PLN;
+  if (subject.startsWith('University Application Support')) return TUTOR_RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN;
+  if (subject.startsWith('SAT Preparation')) return TUTOR_RATE_SAT_PREPARATION_PLN;
   return TUTOR_RATE_IB_PLN;
 }
 
