@@ -358,6 +358,41 @@ export async function bookAvailabilityWindow(input: {
   }
 }
 
+// Tutor pre-assigns a slot (optionally repeating weekly) directly to a
+// chosen student. Sessions are created already 'booked' — payment is
+// handled separately via createPaymentBatch, so the student can choose
+// to pay per-session or in a bundle afterward.
+export async function createRecurringBookingForStudent(input: {
+  studentId: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+  subject: string | null;
+  repeatWeekly: boolean;
+}): Promise<{ created: Slot[]; skippedDates: string[] }> {
+  const result = await api<{ created: Slot[]; skippedDates: string[] }>('/api/tutor/recurring-booking', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  const nextSlots = { ...snapshot.slots };
+  for (const slot of result.created) nextSlots[slot.id] = slot;
+  snapshot = { ...snapshot, slots: nextSlots };
+  emit();
+  return result;
+}
+
+// Bundles several of the current student's own unpaid, unbatched slots
+// into one payment batch — one reference code and one lump amount,
+// instead of paying for each session separately.
+export async function createPaymentBatch(
+  slotIds: string[]
+): Promise<{ batchId: string; payment: PaymentInfo; slotIds: string[] }> {
+  return api<{ batchId: string; payment: PaymentInfo; slotIds: string[] }>('/api/payment-batches', {
+    method: 'POST',
+    body: JSON.stringify({ slotIds }),
+  });
+}
+
 export function listNotifications(userId: string): Notification[] {
   return Object.values(snapshot.notifications)
     .filter((n) => n.recipientUserId === userId)
