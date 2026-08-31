@@ -27,6 +27,10 @@ export type Slot = {
   bookedByStudentId: string | null;
   bookedAt: string | null;
   subject: string | null;
+  // NULL for one-off slots. Shared by every occurrence created together
+  // via "repeat weekly", so the whole series can be identified and
+  // deleted together later.
+  recurrenceId: string | null;
   createdAt: string;
 };
 
@@ -230,22 +234,42 @@ export function listSlotsForTutor(
   return slots;
 }
 
+// When repeatWeekly is true, the server creates up to 12 weekly
+// occurrences (skipping any that would overlap an existing slot) sharing
+// one recurrenceId, and returns { created, skippedDates } instead of a
+// single Slot — the caller should check for that shape.
 export async function createSlot(
-  input: Omit<Slot, 'id' | 'status' | 'paymentStatus' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'subject' | 'createdAt'>
-): Promise<Slot> {
-  const slot = await api<Slot>('/api/slots', {
+  input: Omit<
+    Slot,
+    'id' | 'status' | 'paymentStatus' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'subject' | 'recurrenceId' | 'createdAt'
+  >,
+  options?: { repeatWeekly?: boolean }
+): Promise<Slot | { created: Slot[]; skippedDates: string[] }> {
+  const result = await api<Slot | { created: Slot[]; skippedDates: string[] }>('/api/slots', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify({ ...input, repeatWeekly: options?.repeatWeekly === true }),
   });
-  snapshot = { ...snapshot, slots: { ...snapshot.slots, [slot.id]: slot } };
+  if ('created' in result) {
+    const nextSlots = { ...snapshot.slots };
+    for (const slot of result.created) nextSlots[slot.id] = slot;
+    snapshot = { ...snapshot, slots: nextSlots };
+  } else {
+    snapshot = { ...snapshot, slots: { ...snapshot.slots, [result.id]: result } };
+  }
   emit();
-  return slot;
+  return result;
 }
 
-export async function deleteSlot(slotId: string): Promise<void> {
-  await api<{ ok: true }>(`/api/slots/${slotId}`, { method: 'DELETE' });
+export async function deleteSlot(
+  slotId: string,
+  scope: 'only' | 'all_future' = 'only'
+): Promise<void> {
+  const result = await api<{ ok: true; deletedIds: string[] }>(
+    `/api/slots/${slotId}?scope=${scope}`,
+    { method: 'DELETE' }
+  );
   const nextSlots = { ...snapshot.slots };
-  delete nextSlots[slotId];
+  for (const id of result.deletedIds) delete nextSlots[id];
   snapshot = { ...snapshot, slots: nextSlots };
   emit();
 }
