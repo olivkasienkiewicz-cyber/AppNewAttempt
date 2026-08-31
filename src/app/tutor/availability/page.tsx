@@ -3,13 +3,16 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Plus, Trash2, ArrowLeftRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2, ArrowLeftRight, X } from 'lucide-react';
 import {
   addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, format, isSameMonth, isSameDay, isBefore, isAfter, startOfToday,
 } from 'date-fns';
 import { toast } from 'sonner';
-import { useAppState, createSlot, deleteSlot, refreshState, type Slot } from '@/lib/store';
+import {
+  useAppState, createSlot, deleteSlot, refreshState, createRecurringBookingForStudent, type Slot,
+} from '@/lib/store';
+import { subjectDisplayLabel } from '@/lib/subjects';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +27,8 @@ import { PageHeader } from '@/components/brand/page-header';
 const DEFAULT_DURATION = 60;
 const DURATION_OPTIONS = [60, 90, 120];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const RECURRING_WEEKS = 12;
+const MAX_STUDENT_RESULTS = 8;
 
 const TIME_OPTIONS: string[] = (() => {
   const out: string[] = [];
@@ -78,12 +83,35 @@ export default function AvailabilityPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [newSlotTime, setNewSlotTime] = useState<string>('');
   const [newSlotDuration, setNewSlotDuration] = useState<number>(DEFAULT_DURATION);
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  const [assignToStudent, setAssignToStudent] = useState(false);
+  const [studentSearch, setStudentSearch] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<string | undefined>(undefined);
 
   const [cancelTarget, setCancelTarget] = useState<Slot | null>(null);
   const [moveTarget, setMoveTarget] = useState<Slot | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Slot | null>(null);
   const [busy, setBusy] = useState(false);
 
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
+
+  const subjectOptions = useMemo(() => {
+    if (!currentUser) return [];
+    return currentUser.subjects.map((s) => subjectDisplayLabel(s));
+  }, [currentUser]);
+
+  const matchingStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    if (q.length === 0) return [];
+    return Object.values(state.users)
+      .filter((u) => u.role === 'student' && u.name.toLowerCase().includes(q))
+      .slice(0, MAX_STUDENT_RESULTS);
+  }, [state.users, studentSearch]);
+
+  const selectedStudent = selectedStudentId ? state.users[selectedStudentId] : null;
 
   const slotsByDate = useMemo(() => {
     const map = new Map<string, Slot[]>();
@@ -143,31 +171,81 @@ export default function AvailabilityPage() {
   const nowHHMM = selectedIsToday ? format(new Date(), 'HH:mm') : null;
   const isPastTime = (t: string): boolean => nowHHMM !== null && t <= nowHHMM;
 
+  const resetAddForm = () => {
+    setNewSlotTime('');
+    setNewSlotDuration(DEFAULT_DURATION);
+    setRepeatWeekly(false);
+    setAssignToStudent(false);
+    setStudentSearch('');
+    setSelectedStudentId(null);
+    setSelectedSubject(undefined);
+  };
+
   const handleDayClick = (d: Date) => {
     if (!inWindow(d)) return;
     setSelectedDate(d);
-    setNewSlotTime('');
-    setNewSlotDuration(DEFAULT_DURATION);
+    resetAddForm();
   };
 
-  const handleAddSlot = () => {
+  const handleAddSlot = async () => {
     if (!selectedDate || !newSlotTime) return;
     if (isPastTime(newSlotTime)) { toast.error('That time has already passed.'); return; }
+    if (assignToStudent && !selectedStudentId) { toast.error('Pick a student first.'); return; }
     const dateKey = toKey(selectedDate);
     const existing = slotsByDate.get(dateKey) ?? [];
     if (wouldOverlap(existing, newSlotTime, newSlotDuration)) {
       toast.error('That overlaps with an existing slot on this day.');
       return;
     }
-    createSlot({
-      tutorId: currentUser.id,
-      date: dateKey,
-      startTime: newSlotTime,
-      durationMinutes: newSlotDuration,
-    });
-    setNewSlotTime('');
-    setNewSlotDuration(DEFAULT_DURATION);
-    toast.success(`Added ${newSlotTime} (${newSlotDuration} min) on ${format(selectedDate, 'd MMM')}`);
+    setAdding(true);
+    try {
+      if (assignToStudent && selectedStudentId) {
+        const result = await createRecurringBookingForStudent({
+          studentId: selectedStudentId,
+          date: dateKey,
+          startTime: newSlotTime,
+          durationMinutes: newSlotDuration,
+          subject: selectedSubject ?? null,
+          repeatWeekly,
+        });
+        const skipped = result.skippedDates.length;
+        const madeCount = result.created.length;
+        const studentName = selectedStudent?.name ?? 'the student';
+        if (skipped > 0) {
+          toast.success(`Booked ${madeCount} session${madeCount === 1 ? '' : 's'} with ${studentName} — skipped ${skipped} date${skipped === 1 ? '' : 's'} due to a conflict.`);
+        } else if (repeatWeekly) {
+          toast.success(`Booked ${madeCount} weekly sessions with ${studentName}`);
+        } else {
+          toast.success(`Booked a session with ${studentName} on ${format(selectedDate, 'd MMM')}`);
+        }
+      } else {
+        const result = await createSlot(
+          {
+            tutorId: currentUser.id,
+            date: dateKey,
+            startTime: newSlotTime,
+            durationMinutes: newSlotDuration,
+          },
+          { repeatWeekly }
+        );
+        if ('created' in result) {
+          const skipped = result.skippedDates.length;
+          const madeCount = result.created.length;
+          if (skipped > 0) {
+            toast.success(`Added ${madeCount} weekly slot${madeCount === 1 ? '' : 's'} — skipped ${skipped} date${skipped === 1 ? '' : 's'} that already had a slot.`);
+          } else {
+            toast.success(`Added ${newSlotTime} weekly for ${RECURRING_WEEKS} weeks`);
+          }
+        } else {
+          toast.success(`Added ${newSlotTime} (${newSlotDuration} min) on ${format(selectedDate, 'd MMM')}`);
+        }
+      }
+      resetAddForm();
+    } catch {
+      toast.error("Couldn't add that slot — try again.");
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleDeleteSlot = (slot: Slot) => {
@@ -175,7 +253,25 @@ export default function AvailabilityPage() {
       setCancelTarget(slot);
       return;
     }
-    deleteSlot(slot.id);
+    if (slot.recurrenceId) {
+      setDeleteTarget(slot);
+      return;
+    }
+    void deleteSlot(slot.id, 'only');
+  };
+
+  const confirmDelete = async (scope: 'only' | 'all_future') => {
+    if (!deleteTarget) return;
+    setBusy(true);
+    try {
+      await deleteSlot(deleteTarget.id, scope);
+      toast.success(scope === 'all_future' ? 'Deleted this and all future occurrences' : 'Deleted that slot');
+    } catch {
+      toast.error("Couldn't delete that slot — try again.");
+    } finally {
+      setBusy(false);
+      setDeleteTarget(null);
+    }
   };
 
   const confirmCancel = async () => {
@@ -308,6 +404,11 @@ export default function AvailabilityPage() {
                           Booked
                         </span>
                       )}
+                      {slot.recurrenceId && (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">
+                          Weekly
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1">
                       {slot.status === 'booked' && (
@@ -327,29 +428,118 @@ export default function AvailabilityPage() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 pt-2">
-            <Select value={newSlotTime} onValueChange={(v) => setNewSlotTime(v ?? '')}>
-              <SelectTrigger className="min-w-[9rem] flex-1" aria-label="Start time">
-                <SelectValue placeholder="Pick a start time" />
-              </SelectTrigger>
-              <SelectContent className="max-h-60">
-                {TIME_OPTIONS.map((t) => (
-                  <SelectItem key={t} value={t} disabled={isPastTime(t)}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={String(newSlotDuration)} onValueChange={(v) => setNewSlotDuration(Number(v))}>
-              <SelectTrigger className="w-28" aria-label="Duration">
-                <SelectValue>{(value: string) => `${value} min`}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {DURATION_OPTIONS.map((d) => (
-                  <SelectItem key={d} value={String(d)}>{d} min</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button onClick={handleAddSlot} disabled={!newSlotTime}>
-              <Plus className="mr-1 h-4 w-4" /> Add slot
+          <div className="flex flex-col gap-3 pt-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={newSlotTime} onValueChange={(v) => setNewSlotTime(v ?? '')}>
+                <SelectTrigger className="min-w-[9rem] flex-1" aria-label="Start time">
+                  <SelectValue placeholder="Pick a start time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {TIME_OPTIONS.map((t) => (
+                    <SelectItem key={t} value={t} disabled={isPastTime(t)}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={String(newSlotDuration)} onValueChange={(v) => setNewSlotDuration(Number(v))}>
+                <SelectTrigger className="w-28" aria-label="Duration">
+                  <SelectValue>{(value: string) => `${value} min`}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {DURATION_OPTIONS.map((d) => (
+                    <SelectItem key={d} value={String(d)}>{d} min</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={repeatWeekly}
+                onChange={(e) => setRepeatWeekly(e.target.checked)}
+                className="h-4 w-4 rounded border-border"
+              />
+              Repeat weekly for {RECURRING_WEEKS} weeks
+            </label>
+
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={assignToStudent}
+                onChange={(e) => {
+                  setAssignToStudent(e.target.checked);
+                  if (!e.target.checked) {
+                    setStudentSearch('');
+                    setSelectedStudentId(null);
+                    setSelectedSubject(undefined);
+                  }
+                }}
+                className="h-4 w-4 rounded border-border"
+              />
+              Assign to a specific student
+            </label>
+
+            {assignToStudent && (
+              <div className="flex flex-col gap-2 rounded-md border border-border p-3">
+                {selectedStudent ? (
+                  <div className="flex items-center justify-between rounded-md bg-accent px-3 py-2 text-sm">
+                    <span className="font-medium text-foreground">{selectedStudent.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedStudentId(null); setStudentSearch(''); }}
+                      aria-label="Clear selected student"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      value={studentSearch}
+                      onChange={(e) => setStudentSearch(e.target.value)}
+                      placeholder="Search students by name…"
+                      className="h-9 rounded-md border border-border bg-background px-2.5 text-sm"
+                    />
+                    {matchingStudents.length > 0 && (
+                      <ul className="max-h-32 space-y-1 overflow-y-auto">
+                        {matchingStudents.map((s) => (
+                          <li key={s.id}>
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedStudentId(s.id); setStudentSearch(''); }}
+                              className="w-full rounded-md px-2.5 py-1.5 text-left text-sm hover:bg-accent"
+                            >
+                              {s.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+
+                {subjectOptions.length > 0 && (
+                  <Select value={selectedSubject} onValueChange={(v) => setSelectedSubject(v ?? undefined)}>
+                    <SelectTrigger className="w-full" aria-label="Subject">
+                      <SelectValue placeholder="Subject (optional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subjectOptions.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  This books the session directly — the student won&apos;t need to reserve it themselves. They&apos;ll choose how to pay afterward.
+                </p>
+              </div>
+            )}
+
+            <Button onClick={() => void handleAddSlot()} disabled={!newSlotTime || adding} className="w-full">
+              <Plus className="mr-1 h-4 w-4" /> {adding ? 'Adding…' : 'Add slot'}
             </Button>
           </div>
 
@@ -377,6 +567,28 @@ export default function AvailabilityPage() {
               </Button>
               <Button variant="outline" className="flex-1" disabled={busy} onClick={() => void confirmCancel()}>
                 {busy ? 'Cancelling…' : 'Cancel session'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+            <h2 className="font-display text-2xl text-foreground">Delete this slot?</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {deleteTarget.date} at {deleteTarget.startTime} is part of a weekly series.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <Button variant="outline" disabled={busy} onClick={() => void confirmDelete('only')}>
+                {busy ? 'Deleting…' : 'Delete just this one'}
+              </Button>
+              <Button variant="outline" disabled={busy} onClick={() => void confirmDelete('all_future')}>
+                {busy ? 'Deleting…' : 'Delete this and all future occurrences'}
+              </Button>
+              <Button variant="ghost" disabled={busy} onClick={() => setDeleteTarget(null)}>
+                Keep it
               </Button>
             </div>
           </div>
@@ -454,3 +666,4 @@ function AvailabilitySkeleton() {
     </main>
   );
 }
+
