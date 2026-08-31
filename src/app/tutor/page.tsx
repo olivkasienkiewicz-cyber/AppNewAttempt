@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
-import { Bell, MoreVertical, Link2, Pencil } from 'lucide-react';
+import { Bell, MoreVertical, Link2, Pencil, MessageCircle } from 'lucide-react';
 import { parse, addMinutes, format } from 'date-fns';
 import { toast } from 'sonner';
 import { useAppState, setMeetingUrl, type Slot } from '@/lib/store';
@@ -148,6 +148,15 @@ export default function TutorHomePage() {
                             <StatusPill tone={slot.paymentStatus === 'paid' ? 'paid' : 'unpaid'}>
                               {slot.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
                             </StatusPill>
+                            {slot.bookedByStudentId && (
+                              <Link
+                                href={`/messages/${slot.bookedByStudentId}`}
+                                aria-label={`Message ${booker?.name ?? 'student'}`}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                              </Link>
+                            )}
                           </div>
                         )}
                       </div>
