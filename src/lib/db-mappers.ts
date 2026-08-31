@@ -53,6 +53,10 @@ export function rowToSlot(row: Record<string, unknown>): Slot {
     bookedByStudentId: (row.booked_by_student_id as string | null) ?? null,
     bookedAt: row.booked_at ? new Date(row.booked_at as string).toISOString() : null,
     subject: (row.subject as string | null) ?? null,
+    // NULL for one-off slots. Shared across all rows created together by
+    // a single "repeat weekly" action, so the series can be identified
+    // and deleted together later.
+    recurrenceId: (row.recurrence_id as string | null) ?? null,
     createdAt: new Date(row.created_at as string).toISOString(),
   };
 }
