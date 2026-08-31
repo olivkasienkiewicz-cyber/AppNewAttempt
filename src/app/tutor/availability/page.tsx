@@ -13,6 +13,7 @@ import {
   useAppState, createSlot, deleteSlot, refreshState, createRecurringBookingForStudent, type Slot,
 } from '@/lib/store';
 import { subjectDisplayLabel } from '@/lib/subjects';
+import { TIMEZONE_OPTIONS, CANONICAL_TIMEZONE, convertWallTime, detectBrowserTimezone } from '@/lib/timezones';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
@@ -83,6 +84,7 @@ export default function AvailabilityPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [newSlotTime, setNewSlotTime] = useState<string>('');
   const [newSlotDuration, setNewSlotDuration] = useState<number>(DEFAULT_DURATION);
+  const [entryTimezone, setEntryTimezone] = useState<string>(CANONICAL_TIMEZONE);
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [adding, setAdding] = useState(false);
 
@@ -167,13 +169,11 @@ export default function AvailabilityPage() {
   const inWindow = (d: Date) => !isBefore(d, today) && !isAfter(d, windowEnd);
   const selectedKey = selectedDate ? toKey(selectedDate) : null;
   const selectedSlots = selectedKey ? (slotsByDate.get(selectedKey) ?? []) : [];
-  const selectedIsToday = selectedDate ? isSameDay(selectedDate, today) : false;
-  const nowHHMM = selectedIsToday ? format(new Date(), 'HH:mm') : null;
-  const isPastTime = (t: string): boolean => nowHHMM !== null && t <= nowHHMM;
 
   const resetAddForm = () => {
     setNewSlotTime('');
     setNewSlotDuration(DEFAULT_DURATION);
+    setEntryTimezone(CANONICAL_TIMEZONE);
     setRepeatWeekly(false);
     setAssignToStudent(false);
     setStudentSearch('');
@@ -189,21 +189,34 @@ export default function AvailabilityPage() {
 
   const handleAddSlot = async () => {
     if (!selectedDate || !newSlotTime) return;
-    if (isPastTime(newSlotTime)) { toast.error('That time has already passed.'); return; }
-    if (assignToStudent && !selectedStudentId) { toast.error('Pick a student first.'); return; }
     const dateKey = toKey(selectedDate);
-    const existing = slotsByDate.get(dateKey) ?? [];
-    if (wouldOverlap(existing, newSlotTime, newSlotDuration)) {
-      toast.error('That overlaps with an existing slot on this day.');
+
+    // The date/time chosen in the dialog are wall-clock values in
+    // `entryTimezone` — convert to Poland time before any validation or
+    // submission, since that's what's actually stored and compared.
+    const { date: warsawDate, time: warsawTime } = convertWallTime(
+      dateKey, newSlotTime, entryTimezone, CANONICAL_TIMEZONE
+    );
+
+    if (startDateTime(warsawDate, warsawTime).getTime() <= Date.now()) {
+      toast.error('That time has already passed in Poland time.');
       return;
     }
+    if (assignToStudent && !selectedStudentId) { toast.error('Pick a student first.'); return; }
+
+    const existing = slotsByDate.get(warsawDate) ?? [];
+    if (wouldOverlap(existing, warsawTime, newSlotDuration)) {
+      toast.error('That overlaps with an existing slot on this day (Poland time).');
+      return;
+    }
+
     setAdding(true);
     try {
       if (assignToStudent && selectedStudentId) {
         const result = await createRecurringBookingForStudent({
           studentId: selectedStudentId,
-          date: dateKey,
-          startTime: newSlotTime,
+          date: warsawDate,
+          startTime: warsawTime,
           durationMinutes: newSlotDuration,
           subject: selectedSubject ?? null,
           repeatWeekly,
@@ -216,14 +229,14 @@ export default function AvailabilityPage() {
         } else if (repeatWeekly) {
           toast.success(`Booked ${madeCount} weekly sessions with ${studentName}`);
         } else {
-          toast.success(`Booked a session with ${studentName} on ${format(selectedDate, 'd MMM')}`);
+          toast.success(`Booked a session with ${studentName} on ${warsawDate}`);
         }
       } else {
         const result = await createSlot(
           {
             tutorId: currentUser.id,
-            date: dateKey,
-            startTime: newSlotTime,
+            date: warsawDate,
+            startTime: warsawTime,
             durationMinutes: newSlotDuration,
           },
           { repeatWeekly }
@@ -234,10 +247,10 @@ export default function AvailabilityPage() {
           if (skipped > 0) {
             toast.success(`Added ${madeCount} weekly slot${madeCount === 1 ? '' : 's'} — skipped ${skipped} date${skipped === 1 ? '' : 's'} that already had a slot.`);
           } else {
-            toast.success(`Added ${newSlotTime} weekly for ${RECURRING_WEEKS} weeks`);
+            toast.success(`Added ${warsawTime} (Poland time) weekly for ${RECURRING_WEEKS} weeks`);
           }
         } else {
-          toast.success(`Added ${newSlotTime} (${newSlotDuration} min) on ${format(selectedDate, 'd MMM')}`);
+          toast.success(`Added ${warsawTime} (Poland time), ${newSlotDuration} min, on ${warsawDate}`);
         }
       }
       resetAddForm();
@@ -329,6 +342,7 @@ export default function AvailabilityPage() {
       <div className="mb-8 space-y-1">
         <p className="eyebrow">Calendar</p>
         <h1 className="font-display text-4xl text-foreground">Edit availability</h1>
+        <p className="text-xs text-muted-foreground">All times are stored and shown to students in Poland time. Use the timezone picker below only if you're entering a time from somewhere else.</p>
       </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
@@ -436,7 +450,7 @@ export default function AvailabilityPage() {
                 </SelectTrigger>
                 <SelectContent className="max-h-60">
                   {TIME_OPTIONS.map((t) => (
-                    <SelectItem key={t} value={t} disabled={isPastTime(t)}>{t}</SelectItem>
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -450,6 +464,28 @@ export default function AvailabilityPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs text-muted-foreground">Entering this time in</label>
+              <Select value={entryTimezone} onValueChange={(v) => setEntryTimezone(v ?? CANONICAL_TIMEZONE)}>
+                <SelectTrigger className="w-full" aria-label="Timezone">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {TIMEZONE_OPTIONS.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {entryTimezone !== CANONICAL_TIMEZONE && newSlotTime && selectedDate && (
+                <p className="text-xs text-muted-foreground">
+                  That's {(() => {
+                    const c = convertWallTime(toKey(selectedDate), newSlotTime, entryTimezone, CANONICAL_TIMEZONE);
+                    return `${c.time} on ${c.date}`;
+                  })()} in Poland time.
+                </p>
+              )}
             </div>
 
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -666,4 +702,3 @@ function AvailabilitySkeleton() {
     </main>
   );
 }
-
