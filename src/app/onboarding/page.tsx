@@ -8,20 +8,35 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { BrandMark } from '@/components/brand/brand-mark';
+
 const MAX_LEN = 40;
+
 export default function OnboardingPage() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [role, setRole] = useState<Role | null>(null);
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
   if (status === 'unauthenticated') {
     router.replace('/login');
     return null;
   }
+
+  // An account that already has a role should never see this picker again
+  // — submitting it would silently overwrite an existing role (this is
+  // exactly what happened to a parent account that got reverted back to
+  // 'student' after landing here by mistake).
+  const existingRole = (session?.user as { role?: Role | null } | undefined)?.role;
+  if (status === 'authenticated' && existingRole) {
+    router.replace('/post-login');
+    return null;
+  }
+
   const trimmed = name.trim();
   const canSubmit = role !== null && trimmed.length > 0 && trimmed.length <= MAX_LEN && !submitting;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!role) { setError('Choose one to continue.'); return; }
@@ -33,6 +48,9 @@ export default function OnboardingPage() {
       if (user.role === 'tutor') {
         toast.info('Add the subjects you tutor from your dashboard.');
         router.replace('/tutor/profile');
+      } else if (user.role === 'parent') {
+        toast.info('Add your child from your account page to see their bookings.');
+        router.replace('/account');
       } else {
         router.replace('/student');
       }
@@ -42,6 +60,7 @@ export default function OnboardingPage() {
       toast.error("Couldn't reach the server to save your profile.");
     }
   };
+
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col px-6 pt-10 pb-10">
       <header className="mb-10 flex items-center justify-between border-b border-border pb-4">
@@ -71,6 +90,14 @@ export default function OnboardingPage() {
                 onClick={() => { setRole('tutor'); if (error) setError(null); }}
               >
                 Tutor
+              </Button>
+              <Button
+                type="button"
+                variant={role === 'parent' ? 'default' : 'outline'}
+                className="h-12 flex-1"
+                onClick={() => { setRole('parent'); if (error) setError(null); }}
+              >
+                Parent
               </Button>
             </div>
           </div>
