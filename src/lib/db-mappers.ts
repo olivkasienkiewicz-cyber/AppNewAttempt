@@ -6,6 +6,7 @@ export function rowToUser(row: Record<string, unknown>): User {
     id: row.id as string,
     name: row.name as string,
     role: row.role as User['role'],
+    parentId: (row.parent_id as string | null) ?? null,
     subjects: parseSubjects(row.subjects),
     createdAt: new Date(row.created_at as string).toISOString(),
   };
@@ -53,9 +54,6 @@ export function rowToSlot(row: Record<string, unknown>): Slot {
     bookedByStudentId: (row.booked_by_student_id as string | null) ?? null,
     bookedAt: row.booked_at ? new Date(row.booked_at as string).toISOString() : null,
     subject: (row.subject as string | null) ?? null,
-    // NULL for one-off slots. Shared across all rows created together by
-    // a single "repeat weekly" action, so the series can be identified
-    // and deleted together later.
     recurrenceId: (row.recurrence_id as string | null) ?? null,
     createdAt: new Date(row.created_at as string).toISOString(),
   };
