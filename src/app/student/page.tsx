@@ -67,9 +67,6 @@ export default function StudentBrowsePage() {
 
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
 
-  // A linked parent can use this same page to book on their student's
-  // behalf. `effectiveStudent` is whoever the booking is actually for —
-  // the signed-in student themselves, or the parent's linked student.
   const linkedStudent = useMemo(() => {
     if (!currentUser || currentUser.role !== 'parent') return null;
     return Object.values(state.users).find((u) => u.role === 'student' && u.parentId === currentUser.id) ?? null;
@@ -272,8 +269,6 @@ export default function StudentBrowsePage() {
       : { date: pendingBooking.date, startTime: pendingBooking.startTime };
   }, [pendingBooking]);
 
-  // A linked student loses the bank-transfer/reference view — their
-  // parent sees it instead. The parent always sees it when they book.
   const showPaymentDetails = isActingAsParent || !effectiveStudent?.parentId;
 
   const handleConfirm = async (subject: string | null) => {
@@ -634,4 +629,24 @@ export default function StudentBrowsePage() {
                 </div>
               </>
             ) : (
-              
+              <p className="mt-2 text-sm text-muted-foreground">
+                Your session is booked. Your parent will handle payment for this session.
+              </p>
+            )}
+            <Button className="mt-6 w-full" onClick={() => setPaymentInfo(null)}>Done</Button>
+          </div>
+        </div>
+      )}
+
+      <SubjectRequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
+      {selectedTutorId && (
+        <SlotRequestModal
+          open={slotRequestModalOpen}
+          onOpenChange={setSlotRequestModalOpen}
+          tutorId={selectedTutorId}
+        />
+      )}
+    </main>
+  );
+}
+
