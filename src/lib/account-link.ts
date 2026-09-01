@@ -14,12 +14,17 @@ export type CreateAccountLinkResult =
 // invitee already has an account or not: the actual role/parent_id change
 // only happens later, when they open the link while signed in as that
 // exact email (see /confirm-link and its confirm route).
+//
+// baseUrl comes from the calling route's own request (there's no
+// NEXTAUTH_URL/AUTH_URL env var configured in this project), so the link
+// always points at whatever host actually served the request.
 export async function createAccountLink(
   initiatorId: string,
   initiatorEmail: string,
   initiatorName: string,
   inviteeEmail: string,
-  direction: Direction
+  direction: Direction,
+  baseUrl: string
 ): Promise<CreateAccountLinkResult> {
   const email = inviteeEmail.trim().toLowerCase();
   if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -50,7 +55,7 @@ export async function createAccountLink(
     VALUES (${initiatorId}, ${email}, ${direction}, ${token}, ${expiresAt})
   `;
 
-  const confirmUrl = `${process.env.NEXTAUTH_URL ?? ''}/confirm-link?token=${token}`;
+  const confirmUrl = `${baseUrl}/confirm-link?token=${token}`;
   const subject =
     direction === 'student_invites_parent'
       ? `${initiatorName} added you as a parent on Studilly`
