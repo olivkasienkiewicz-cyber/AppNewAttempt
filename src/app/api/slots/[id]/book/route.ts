@@ -5,6 +5,7 @@ import { rowToSlot, rowToNotification, rowToUser } from '@/lib/db-mappers';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS, ADMIN_EMAIL } from '@/lib/payment';
 import { sendEmail } from '@/lib/email';
 import { isSelfOrLinkedParent } from '@/lib/parent-access';
+import { notifyLinkedParent } from '@/lib/parent-notify';
 
 function labelsForUser(user: { subjects: { subject: string; detail: string | null }[] }): string[] {
   return user.subjects.map((ts) => {
@@ -33,8 +34,6 @@ export async function POST(
     return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
   }
 
-  // Only the student themselves, or a parent linked to that student, may
-  // book a slot on that student's behalf.
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
@@ -43,8 +42,6 @@ export async function POST(
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
-  // Validate the requested subject against the tutor's actual subject list
-  // BEFORE booking, so a bad request never leaves a slot half-booked.
   const preRows = await sql`SELECT tutor_id FROM slots WHERE id = ${slotId}`;
   let normalizedSubject: string | null = null;
   if (preRows.length > 0 && typeof subject === 'string' && subject.trim().length > 0) {
@@ -150,6 +147,18 @@ export async function POST(
         payment,
       }),
     }),
+    notifyLinkedParent(
+      studentId,
+      `Booking confirmed for ${student?.name ?? 'your child'} — ${ddmm} at ${slot.startTime}`,
+      parentBookingEmailHtml({
+        studentName: student?.name ?? 'your child',
+        tutorName: tutor?.name ?? 'their tutor',
+        ddmm,
+        startTime: slot.startTime,
+        sessionSubject: slot.subject,
+        payment,
+      })
+    ),
   ]);
 
   return NextResponse.json({
@@ -236,6 +245,37 @@ function adminEmailHtml(args: {
         <tr><td style="padding: 4px 0; color: #666;">Reference code</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
       </table>
       <p style="color: #666; font-size: 13px;">Watch for a transfer matching this reference code, then confirm payment in the admin bookings page.</p>
+    </div>
+  `;
+}
+
+function parentBookingEmailHtml(args: {
+  studentName: string;
+  tutorName: string;
+  ddmm: string;
+  startTime: string;
+  sessionSubject: string | null;
+  payment: {
+    referenceCode: string;
+    amount: number;
+    currency: string;
+    bankDetails: { accountHolder: string; iban: string; bankName: string };
+  };
+}): string {
+  const { studentName, tutorName, ddmm, startTime, sessionSubject, payment } = args;
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Booking confirmed</h2>
+      <p>A session for <strong>${studentName}</strong> with <strong>${tutorName}</strong> is booked for <strong>${ddmm}</strong> at <strong>${startTime}</strong>${sessionSubject ? ` — <strong>${sessionSubject}</strong>` : ''}.</p>
+      <h3>Payment by bank transfer</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 4px 0; color: #666;">Account holder</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.accountHolder}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">IBAN</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.iban}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Bank</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.bankName}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Amount</td><td style="padding: 4px 0; text-align: right;">${payment.amount.toFixed(2)} ${payment.currency}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Reference</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
+      </table>
+      <p style="color: #666; font-size: 13px;">Please include the reference code exactly as shown so we can match your transfer to this booking. You can also view this anytime from your dashboard.</p>
     </div>
   `;
 }
