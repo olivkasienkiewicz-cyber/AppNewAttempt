@@ -3,7 +3,8 @@ import Resend from 'next-auth/providers/resend';
 import PostgresAdapter from '@auth/pg-adapter';
 import { Pool } from '@neondatabase/serverless';
 
-type RoleField = { role?: 'tutor' | 'student' | null };
+type RoleField = { role?: 'tutor' | 'student' | 'admin' | 'parent' | null };
+type ParentField = { parent_id?: string | null };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(() => {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
@@ -31,6 +32,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(() => {
         session.user.id = user.id;
         (session.user as typeof session.user & RoleField).role =
           (user as typeof user & RoleField).role ?? null;
+        (session.user as typeof session.user & ParentField).parent_id =
+          (user as typeof user & ParentField).parent_id ?? null;
         return session;
       },
     },
