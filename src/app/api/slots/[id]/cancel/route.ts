@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
-import { rowToSlot } from '@/lib/db-mappers';
+import { rowToSlot, rowToUser } from '@/lib/db-mappers';
+import { isSelfOrLinkedParent } from '@/lib/parent-access';
+import { notifyLinkedParent } from '@/lib/parent-notify';
 
 export const dynamic = 'force-dynamic';
 
-// Either the tutor who owns the slot or the student who booked it can
-// cancel. This does not enforce the 24-hour policy — it's informational,
-// shown as a warning client-side before this endpoint is even called.
+// Either the tutor who owns the slot, the student who booked it, or that
+// student's linked parent can cancel. This does not enforce the 24-hour
+// policy — it's informational, shown as a warning client-side before this
+// endpoint is even called.
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session?.user?.id) {
@@ -22,8 +25,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const slot = rowToSlot(rows[0]);
 
   const isTutor = slot.tutorId === session.user.id;
-  const isBookingStudent = slot.bookedByStudentId === session.user.id;
-  if (!isTutor && !isBookingStudent) {
+  const isAuthorizedStudentSide =
+    slot.bookedByStudentId !== null &&
+    (await isSelfOrLinkedParent(session.user.id, slot.bookedByStudentId));
+  if (!isTutor && !isAuthorizedStudentSide) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
   if (slot.status !== 'booked') {
@@ -47,5 +52,39 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     `;
   }
 
+  if (slot.bookedByStudentId) {
+    const [studentRows, tutorRows] = await Promise.all([
+      sql`SELECT * FROM users WHERE id = ${slot.bookedByStudentId}`,
+      sql`SELECT * FROM users WHERE id = ${slot.tutorId}`,
+    ]);
+    const student = studentRows[0] ? rowToUser(studentRows[0]) : null;
+    const tutor = tutorRows[0] ? rowToUser(tutorRows[0]) : null;
+    await notifyLinkedParent(
+      slot.bookedByStudentId,
+      `Session cancelled — ${slot.date} at ${slot.startTime}`,
+      parentCancelEmailHtml({
+        studentName: student?.name ?? 'your child',
+        tutorName: tutor?.name ?? 'the tutor',
+        date: slot.date,
+        startTime: slot.startTime,
+      })
+    );
+  }
+
   return NextResponse.json(rowToSlot(updatedRows[0]));
+}
+
+function parentCancelEmailHtml(args: {
+  studentName: string;
+  tutorName: string;
+  date: string;
+  startTime: string;
+}): string {
+  const { studentName, tutorName, date, startTime } = args;
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Session cancelled</h2>
+      <p>The session for <strong>${studentName}</strong> with <strong>${tutorName}</strong> on <strong>${date}</strong> at <strong>${startTime}</strong> has been cancelled.</p>
+    </div>
+  `;
 }
