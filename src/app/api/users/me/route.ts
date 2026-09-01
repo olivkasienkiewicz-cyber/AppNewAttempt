@@ -52,8 +52,15 @@ export async function PATCH(req: Request) {
 
   let nextRole: Role = existing.role;
   if (role !== undefined) {
-    if (role !== 'tutor' && role !== 'student') {
+    if (role !== 'tutor' && role !== 'student' && role !== 'parent') {
       return NextResponse.json({ error: 'invalid_role' }, { status: 400 });
+    }
+    // Once an account has a role, onboarding shouldn't be able to change
+    // it again — this endpoint is also used by other flows (e.g. subject
+    // updates) that don't touch role at all, so this only blocks an
+    // attempt to actually switch an already-set role.
+    if (existing.role && existing.role !== role) {
+      return NextResponse.json({ error: 'role_already_set' }, { status: 400 });
     }
     nextRole = role;
   }
@@ -110,10 +117,6 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: 'invalid_detail' }, { status: 400 });
       }
 
-      // Dedup key: for multi-instance subjects, include the normalized
-      // detail so distinct entries (different custom subjects, different
-      // exam components) don't collide; for everything else, the subject
-      // name alone is still the unique identity.
       const dedupKey = isMultiInstanceSubject(subjectName)
         ? `${subjectName}:${(normalizedDetail ?? '').toLowerCase()}`
         : subjectName;
