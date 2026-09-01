@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
-import { rowToSlot } from '@/lib/db-mappers';
+import { rowToSlot, rowToUser } from '@/lib/db-mappers';
 import { isSelfOrLinkedParent } from '@/lib/parent-access';
+import { notifyLinkedParent } from '@/lib/parent-notify';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,5 +85,41 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     VALUES (${otherPartyId}, ${message}, ${newSlotId})
   `;
 
+  const [studentRows, tutorRows] = await Promise.all([
+    sql`SELECT * FROM users WHERE id = ${studentId}`,
+    sql`SELECT * FROM users WHERE id = ${oldSlot.tutorId}`,
+  ]);
+  const student = studentRows[0] ? rowToUser(studentRows[0]) : null;
+  const tutor = tutorRows[0] ? rowToUser(tutorRows[0]) : null;
+  await notifyLinkedParent(
+    studentId,
+    `Session moved — now ${newSlot.date} at ${newSlot.startTime}`,
+    parentRescheduleEmailHtml({
+      studentName: student?.name ?? 'your child',
+      tutorName: tutor?.name ?? 'the tutor',
+      oldDate: oldSlot.date,
+      oldStartTime: oldSlot.startTime,
+      newDate: newSlot.date,
+      newStartTime: newSlot.startTime,
+    })
+  );
+
   return NextResponse.json(rowToSlot(updatedNewRows[0]));
+}
+
+function parentRescheduleEmailHtml(args: {
+  studentName: string;
+  tutorName: string;
+  oldDate: string;
+  oldStartTime: string;
+  newDate: string;
+  newStartTime: string;
+}): string {
+  const { studentName, tutorName, oldDate, oldStartTime, newDate, newStartTime } = args;
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Session moved</h2>
+      <p>The session for <strong>${studentName}</strong> with <strong>${tutorName}</strong> has moved from <strong>${oldDate} ${oldStartTime}</strong> to <strong>${newDate} ${newStartTime}</strong>.</p>
+    </div>
+  `;
 }
