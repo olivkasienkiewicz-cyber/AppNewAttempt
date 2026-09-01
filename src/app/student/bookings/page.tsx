@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
 import { SlotRequestModal } from '@/components/SlotRequestModal';
+import { referenceCodeForSlot, amountForSlot, BANK_DETAILS } from '@/lib/payment';
 
 function toMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -39,6 +40,10 @@ export default function StudentBookingsPage() {
 
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
 
+  // A linked student's parent handles payment — this student never sees
+  // reference/bank details, matching the gate used at booking time.
+  const showPaymentDetails = !currentUser?.parentId;
+
   const myBookings = useMemo<Slot[]>(() => {
     if (!currentUser) return [];
     const now = new Date();
@@ -52,6 +57,7 @@ export default function StudentBookingsPage() {
   const [moveTarget, setMoveTarget] = useState<Slot | null>(null);
   const [proposeModalTutorId, setProposeModalTutorId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [revealedId, setRevealedId] = useState<string | null>(null);
 
   const moveOptions = useMemo<Slot[]>(() => {
     if (!moveTarget) return [];
@@ -138,6 +144,7 @@ export default function StudentBookingsPage() {
           {myBookings.map((slot) => {
             const tutor = state.users[slot.tutorId];
             const withinDay = hoursUntil(slot.date, slot.startTime) < 24;
+            const isRevealed = revealedId === slot.id;
             return (
               <li key={slot.id} className="rounded-lg border border-border px-4 py-3">
                 <p className="text-sm font-medium text-foreground">
@@ -147,6 +154,38 @@ export default function StudentBookingsPage() {
                 {slot.subject && (
                   <p className="text-xs text-muted-foreground">{slot.subject}</p>
                 )}
+
+                {showPaymentDetails && (
+                  <p className="mt-1 text-xs">
+                    {slot.paymentStatus === 'paid' ? (
+                      <span className="text-success">Paid</span>
+                    ) : (
+                      <span className="text-warning">Unpaid</span>
+                    )}
+                  </p>
+                )}
+
+                {showPaymentDetails && slot.paymentStatus === 'unpaid' && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setRevealedId(isRevealed ? null : slot.id)}
+                      className="text-xs font-medium text-[#16B8A7] hover:underline"
+                    >
+                      {isRevealed ? 'Hide payment details' : 'View payment details'}
+                    </button>
+                    {isRevealed && (
+                      <div className="mt-2 space-y-1 rounded-md border border-border p-3 text-xs">
+                        <p><span className="text-muted-foreground">Reference: </span>{referenceCodeForSlot(slot.id)}</p>
+                        <p><span className="text-muted-foreground">Amount: </span>{amountForSlot(slot.durationMinutes, slot.subject)} PLN</p>
+                        <p><span className="text-muted-foreground">Account holder: </span>{BANK_DETAILS.accountHolder}</p>
+                        <p><span className="text-muted-foreground">IBAN: </span>{BANK_DETAILS.iban}</p>
+                        <p><span className="text-muted-foreground">Bank: </span>{BANK_DETAILS.bankName}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {withinDay && (
                   <p className="mt-2 text-xs text-warning">
                     Less than 24 hours away — cancelling or moving now may still require payment per our policy.
