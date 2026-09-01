@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
+import { rowToUser } from '@/lib/db-mappers';
 import { ADMIN_EMAIL } from '@/lib/payment';
+import { notifyLinkedParent } from '@/lib/parent-notify';
 
 // Confirms a payment batch as paid, marking every slot in it paid at the
 // same time. Restricted to the admin account, matching how individual
@@ -26,8 +28,34 @@ export async function POST(
 
   const slotRows = await sql`
     UPDATE slots SET payment_status = 'paid' WHERE payment_batch_id = ${batchId}
-    RETURNING id
+    RETURNING id, booked_by_student_id
   `;
 
+  // Notify each affected student's linked parent (if any). A batch can
+  // span multiple slots for the same student, so dedupe first.
+  const studentIds = Array.from(
+    new Set(slotRows.map((r) => r.booked_by_student_id as string | null).filter((id): id is string => !!id))
+  );
+  await Promise.all(
+    studentIds.map(async (studentId) => {
+      const studentRows = await sql`SELECT * FROM users WHERE id = ${studentId}`;
+      const student = studentRows[0] ? rowToUser(studentRows[0]) : null;
+      await notifyLinkedParent(
+        studentId,
+        `Payment received for ${student?.name ?? 'your child'}`,
+        parentPaymentEmailHtml({ studentName: student?.name ?? 'your child' })
+      );
+    })
+  );
+
   return NextResponse.json({ ok: true, updatedSlotIds: slotRows.map((r) => r.id) });
+}
+
+function parentPaymentEmailHtml(args: { studentName: string }): string {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Payment received</h2>
+      <p>We've confirmed payment for <strong>${args.studentName}</strong>'s session(s). Thank you!</p>
+    </div>
+  `;
 }
