@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { rowToSlot, rowToNotification, rowToUser } from '@/lib/db-mappers';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS, ADMIN_EMAIL } from '@/lib/payment';
 import { sendEmail } from '@/lib/email';
+import { isSelfOrLinkedParent } from '@/lib/parent-access';
 
 function labelsForUser(user: { subjects: { subject: string; detail: string | null }[] }): string[] {
   return user.subjects.map((ts) => {
@@ -29,6 +31,16 @@ export async function POST(
   }
   if (subject !== undefined && subject !== null && typeof subject !== 'string') {
     return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
+  }
+
+  // Only the student themselves, or a parent linked to that student, may
+  // book a slot on that student's behalf.
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
+  }
+  if (!(await isSelfOrLinkedParent(session.user.id, studentId))) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   }
 
   // Validate the requested subject against the tutor's actual subject list
