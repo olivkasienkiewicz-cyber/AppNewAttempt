@@ -56,11 +56,6 @@ function splitCountries(detail: string | null): string[] {
   if (!detail) return [];
   return detail.split(',').map((p) => p.trim()).filter(Boolean);
 }
-// For top-level filtering/grouping, 'Egzamin ósmoklasisty' behaves like
-// 'University Application Support' — one category with a secondary picker
-// — rather than the composite "Egzamin ósmoklasisty – Matematyka" label
-// used at booking time (subjectDisplayLabel). Only 'Other' collapses to
-// its detail here.
 function filterCategoryLabel(ts: { subject: string; detail: string | null }): string {
   return ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject;
 }
@@ -70,11 +65,23 @@ export default function StudentBrowsePage() {
   const router = useRouter();
   const { t } = useLanguage();
 
+  const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
+
+  // A linked parent can use this same page to book on their student's
+  // behalf. `effectiveStudent` is whoever the booking is actually for —
+  // the signed-in student themselves, or the parent's linked student.
+  const linkedStudent = useMemo(() => {
+    if (!currentUser || currentUser.role !== 'parent') return null;
+    return Object.values(state.users).find((u) => u.role === 'student' && u.parentId === currentUser.id) ?? null;
+  }, [state.users, currentUser]);
+
+  const isActingAsParent = currentUser?.role === 'parent';
+  const effectiveStudent = isActingAsParent ? linkedStudent : currentUser;
+
   const tutors = useMemo<User[]>(() =>
     Object.values(state.users).filter((u) => u.role === 'tutor').sort((a, b) => a.name.localeCompare(b.name)),
     [state.users]);
 
-  // --- Part A: filters ---
   const [searchText, setSearchText] = useState('');
   const [subjectFilter, setSubjectFilter] = useState('all');
   const [levelFilter, setLevelFilter] = useState('all');
@@ -206,7 +213,6 @@ export default function StudentBrowsePage() {
     selectedDay ? freeSlotsForTutor.filter((s) => s.date === selectedDay) : [],
     [freeSlotsForTutor, selectedDay]);
 
-  // --- Part B: custom-length booking from open availability windows ---
   const [windowDuration, setWindowDuration] = useState<number>(60);
 
   const windowStartOptionsForDay = useMemo<string[]>(() => {
@@ -266,12 +272,20 @@ export default function StudentBrowsePage() {
       : { date: pendingBooking.date, startTime: pendingBooking.startTime };
   }, [pendingBooking]);
 
+  // A linked student loses the bank-transfer/reference view — their
+  // parent sees it instead. The parent always sees it when they book.
+  const showPaymentDetails = isActingAsParent || !effectiveStudent?.parentId;
+
   const handleConfirm = async (subject: string | null) => {
     if (!pendingBooking) return;
-    if (!state.currentUserId) { toast.error('You need to be signed in to book a slot.'); setPendingBooking(null); return; }
+    if (!effectiveStudent) {
+      toast.error(isActingAsParent ? 'No linked student found on your account.' : 'You need to be signed in to book a slot.');
+      setPendingBooking(null);
+      return;
+    }
     try {
       if (pendingBooking.kind === 'fixed') {
-        const result = await bookSlot(pendingBooking.slot.id, state.currentUserId, subject);
+        const result = await bookSlot(pendingBooking.slot.id, effectiveStudent.id, subject);
         if ('error' in result) {
           toast.error('That slot was just taken');
         } else {
@@ -302,6 +316,17 @@ export default function StudentBrowsePage() {
 
   const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
 
+  if (state.dataLoaded && currentUser && currentUser.role !== 'student' && !isActingAsParent) {
+    return (
+      <div className="p-6">This page is for students.</div>
+    );
+  }
+  if (state.dataLoaded && isActingAsParent && !linkedStudent) {
+    return (
+      <div className="p-6">No linked student found on your account.</div>
+    );
+  }
+
   return (
     <main className="mx-auto w-full max-w-3xl px-4 pt-8 pb-12 sm:px-6">
       <PageHeader>
@@ -309,13 +334,24 @@ export default function StudentBrowsePage() {
           onClick={() => router.push('/notifications')} className="h-10 w-10">
           <Bell className="h-[18px] w-[18px]" />
         </Button>
-        <Button variant="ghost" onClick={() => router.push('/student/bookings')} className="h-10">My bookings</Button>
+        {!isActingAsParent && (
+          <>
+            <Button variant="ghost" onClick={() => router.push('/student/bookings')} className="h-10">My bookings</Button>
+            <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
+          </>
+        )}
+        {isActingAsParent && (
+          <Button variant="ghost" onClick={() => router.push('/parent')} className="h-10">My bookings</Button>
+        )}
         <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
       </PageHeader>
 
       <div className="mb-8 space-y-1">
         <p className="eyebrow">Browse</p>
         <h1 className="font-display text-4xl text-foreground">Available sessions</h1>
+        {isActingAsParent && linkedStudent && (
+          <p className="text-sm text-muted-foreground">Booking for {linkedStudent.name}</p>
+        )}
       </div>
 
       {!state.dataLoaded ? (
@@ -584,29 +620,18 @@ export default function StudentBrowsePage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-xl bg-background p-6 shadow-xl">
             <h2 className="font-display text-2xl text-foreground">Booking confirmed</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Please transfer payment within 48 hours using the details below.
-            </p>
-            <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
-              <p><span className="text-muted-foreground">Reference: </span>{paymentInfo.referenceCode}</p>
-              <p><span className="text-muted-foreground">Amount: </span>{paymentInfo.amount} {paymentInfo.currency}</p>
-              <p><span className="text-muted-foreground">Account holder: </span>{paymentInfo.bankDetails.accountHolder}</p>
-              <p><span className="text-muted-foreground">IBAN: </span>{paymentInfo.bankDetails.iban}</p>
-              <p><span className="text-muted-foreground">Bank: </span>{paymentInfo.bankDetails.bankName}</p>
-            </div>
-            <Button className="mt-6 w-full" onClick={() => setPaymentInfo(null)}>Done</Button>
-          </div>
-        </div>
-      )}
-
-      <SubjectRequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
-      {selectedTutorId && (
-        <SlotRequestModal
-          open={slotRequestModalOpen}
-          onOpenChange={setSlotRequestModalOpen}
-          tutorId={selectedTutorId}
-        />
-      )}
-    </main>
-  );
-}
+            {showPaymentDetails ? (
+              <>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Please transfer payment within 48 hours using the details below.
+                </p>
+                <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
+                  <p><span className="text-muted-foreground">Reference: </span>{paymentInfo.referenceCode}</p>
+                  <p><span className="text-muted-foreground">Amount: </span>{paymentInfo.amount} {paymentInfo.currency}</p>
+                  <p><span className="text-muted-foreground">Account holder: </span>{paymentInfo.bankDetails.accountHolder}</p>
+                  <p><span className="text-muted-foreground">IBAN: </span>{paymentInfo.bankDetails.iban}</p>
+                  <p><span className="text-muted-foreground">Bank: </span>{paymentInfo.bankDetails.bankName}</p>
+                </div>
+              </>
+            ) : (
+              
