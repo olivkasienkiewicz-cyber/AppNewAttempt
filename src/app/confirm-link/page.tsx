@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession, signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,14 @@ type LinkInfo = {
 };
 
 export default function ConfirmLinkPage() {
+  return (
+    <Suspense fallback={<main className="flex min-h-screen items-center justify-center"><p className="text-sm text-muted-foreground">Loading…</p></main>}>
+      <ConfirmLinkInner />
+    </Suspense>
+  );
+}
+
+function ConfirmLinkInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { data: session, status } = useSession();
