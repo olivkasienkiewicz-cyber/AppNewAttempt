@@ -3,7 +3,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { TutorSubject } from '@/lib/subjects';
 
-export type Role = 'tutor' | 'student';
+export type Role = 'tutor' | 'student' | 'parent';
 export type SlotStatus = 'free' | 'booked';
 export type PaymentStatus = 'unpaid' | 'paid';
 
@@ -11,6 +11,7 @@ export type User = {
   id: string;
   name: string;
   role: Role;
+  parentId: string | null;
   subjects: TutorSubject[];
   createdAt: string;
 };
@@ -234,10 +235,6 @@ export function listSlotsForTutor(
   return slots;
 }
 
-// When repeatWeekly is true, the server creates up to 12 weekly
-// occurrences (skipping any that would overlap an existing slot) sharing
-// one recurrenceId, and returns { created, skippedDates } instead of a
-// single Slot — the caller should check for that shape.
 export async function createSlot(
   input: Omit<
     Slot,
@@ -358,10 +355,6 @@ export async function bookAvailabilityWindow(input: {
   }
 }
 
-// Tutor pre-assigns a slot (optionally repeating weekly) directly to a
-// chosen student. Sessions are created already 'booked' — payment is
-// handled separately via createPaymentBatch, so the student can choose
-// to pay per-session or in a bundle afterward.
 export async function createRecurringBookingForStudent(input: {
   studentId: string;
   date: string;
@@ -381,9 +374,6 @@ export async function createRecurringBookingForStudent(input: {
   return result;
 }
 
-// Bundles several of the current student's own unpaid, unbatched slots
-// into one payment batch — one reference code and one lump amount,
-// instead of paying for each session separately.
 export async function createPaymentBatch(
   slotIds: string[]
 ): Promise<{ batchId: string; payment: PaymentInfo; slotIds: string[] }> {
