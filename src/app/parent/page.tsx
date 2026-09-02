@@ -9,6 +9,8 @@ import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS } from '@/lib/payment';
 
+const BATCH_SIZES = [1, 4, 12] as const;
+
 function startDateTime(date: string, time: string): Date {
   const [y, m, d] = date.split('-').map(Number);
   const [hh, mm] = time.split(':').map(Number);
@@ -38,8 +40,11 @@ export default function ParentDashboardPage() {
       .sort((a, b) => a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date));
   }, [state.slots, linkedStudent]);
 
-  const batchableIds = useMemo(
-    () => new Set(bookings.filter((s) => s.paymentStatus === 'unpaid' && !s.paymentBatchId).map((s) => s.id)),
+  // Chronologically ordered, eligible-for-a-new-batch sessions (unpaid,
+  // not already part of a pending batch). Preset buttons take the next
+  // N of these in order — no manual selection.
+  const eligibleOrdered = useMemo(
+    () => bookings.filter((s) => s.paymentStatus === 'unpaid' && !s.paymentBatchId),
     [bookings]
   );
 
@@ -47,8 +52,7 @@ export default function ParentDashboardPage() {
   const [moveTarget, setMoveTarget] = useState<Slot | null>(null);
   const [busy, setBusy] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [creatingBatch, setCreatingBatch] = useState(false);
+  const [creatingBatchSize, setCreatingBatchSize] = useState<number | null>(null);
   const [batchPayment, setBatchPayment] = useState<{ referenceCode: string; amount: number; currency: string } | null>(null);
 
   const moveOptions = useMemo<Slot[]>(() => {
@@ -60,27 +64,18 @@ export default function ParentDashboardPage() {
       .sort((a, b) => a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date));
   }, [moveTarget, state.slots]);
 
-  const toggleSelected = (slotId: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(slotId)) next.delete(slotId);
-      else next.add(slotId);
-      return next;
-    });
-  };
-
-  const handleCreateBatch = async () => {
-    if (!linkedStudent || selectedIds.size === 0) return;
-    setCreatingBatch(true);
+  const handlePayBatch = async (size: number) => {
+    if (!linkedStudent || eligibleOrdered.length < size) return;
+    const slotIds = eligibleOrdered.slice(0, size).map((s) => s.id);
+    setCreatingBatchSize(size);
     try {
-      const result = await createPaymentBatch(Array.from(selectedIds), linkedStudent.id);
+      const result = await createPaymentBatch(slotIds, linkedStudent.id);
       setBatchPayment(result.payment);
-      setSelectedIds(new Set());
       await refreshState();
     } catch {
-      toast.error("Couldn't create the payment batch — try again.");
+      toast.error("Couldn't create the payment — try again.");
     } finally {
-      setCreatingBatch(false);
+      setCreatingBatchSize(null);
     }
   };
 
@@ -159,16 +154,25 @@ export default function ParentDashboardPage() {
         <h1 className="font-display text-4xl text-foreground">Bookings &amp; payments</h1>
       </div>
 
-      {batchableIds.size > 0 && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
-          <p className="text-sm text-muted-foreground">
-            {selectedIds.size === 0
-              ? 'Select sessions below to pay several at once.'
-              : `${selectedIds.size} session${selectedIds.size === 1 ? '' : 's'} selected`}
-          </p>
-          <Button size="sm" disabled={selectedIds.size === 0 || creatingBatch} onClick={() => void handleCreateBatch()}>
-            {creatingBatch ? 'Creating…' : 'Pay together'}
-          </Button>
+      {eligibleOrdered.length > 0 && (
+        <div className="mb-4 rounded-lg border border-border bg-muted/30 px-4 py-3">
+          <p className="mb-2 text-sm text-muted-foreground">Pay for upcoming sessions in a bundle:</p>
+          <div className="flex gap-2">
+            {BATCH_SIZES.map((size) => {
+              const enough = eligibleOrdered.length >= size;
+              return (
+                <Button
+                  key={size}
+                  size="sm"
+                  variant={enough ? 'default' : 'outline'}
+                  disabled={!enough || creatingBatchSize !== null}
+                  onClick={() => void handlePayBatch(size)}
+                >
+                  {creatingBatchSize === size ? 'Creating…' : `Pay ${size}`}
+                </Button>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -179,62 +183,47 @@ export default function ParentDashboardPage() {
           {bookings.map((slot) => {
             const tutor = state.users[slot.tutorId];
             const isRevealed = revealedId === slot.id;
-            const canSelect = batchableIds.has(slot.id);
-            const isSelected = selectedIds.has(slot.id);
             return (
               <li key={slot.id} className="rounded-lg border border-border px-4 py-3">
-                <div className="flex items-start gap-3">
-                  {canSelect && (
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelected(slot.id)}
-                      className="mt-1 h-4 w-4"
-                      aria-label={`Select session on ${slot.date} for combined payment`}
-                    />
+                <p className="text-sm font-medium text-foreground">
+                  {formatDayLabel(slot.date)} · {slot.startTime}
+                </p>
+                <p className="text-xs text-muted-foreground">{tutor?.name ?? 'Tutor'}</p>
+                {slot.subject && <p className="text-xs text-muted-foreground">{slot.subject}</p>}
+                <p className="mt-1 text-xs">
+                  {slot.paymentStatus === 'paid' ? (
+                    <span className="text-success">Paid</span>
+                  ) : slot.paymentBatchId ? (
+                    <span className="text-muted-foreground">Included in a pending batch payment</span>
+                  ) : (
+                    <span className="text-warning">Unpaid</span>
                   )}
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-foreground">
-                      {formatDayLabel(slot.date)} · {slot.startTime}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{tutor?.name ?? 'Tutor'}</p>
-                    {slot.subject && <p className="text-xs text-muted-foreground">{slot.subject}</p>}
-                    <p className="mt-1 text-xs">
-                      {slot.paymentStatus === 'paid' ? (
-                        <span className="text-success">Paid</span>
-                      ) : slot.paymentBatchId ? (
-                        <span className="text-muted-foreground">Included in a pending batch payment</span>
-                      ) : (
-                        <span className="text-warning">Unpaid</span>
-                      )}
-                    </p>
+                </p>
 
-                    {slot.paymentStatus === 'unpaid' && !slot.paymentBatchId && (
-                      <div className="mt-2">
-                        <button
-                          type="button"
-                          onClick={() => setRevealedId(isRevealed ? null : slot.id)}
-                          className="text-xs font-medium text-[#16B8A7] hover:underline"
-                        >
-                          {isRevealed ? 'Hide payment details' : 'View payment details'}
-                        </button>
-                        {isRevealed && (
-                          <div className="mt-2 space-y-1 rounded-md border border-border p-3 text-xs">
-                            <p><span className="text-muted-foreground">Reference: </span>{referenceCodeForSlot(slot.id)}</p>
-                            <p><span className="text-muted-foreground">Amount: </span>{amountForSlot(slot.durationMinutes, slot.subject)} PLN</p>
-                            <p><span className="text-muted-foreground">Account holder: </span>{BANK_DETAILS.accountHolder}</p>
-                            <p><span className="text-muted-foreground">IBAN: </span>{BANK_DETAILS.iban}</p>
-                            <p><span className="text-muted-foreground">Bank: </span>{BANK_DETAILS.bankName}</p>
-                          </div>
-                        )}
+                {slot.paymentStatus === 'unpaid' && !slot.paymentBatchId && (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setRevealedId(isRevealed ? null : slot.id)}
+                      className="text-xs font-medium text-[#16B8A7] hover:underline"
+                    >
+                      {isRevealed ? 'Hide payment details' : 'View payment details'}
+                    </button>
+                    {isRevealed && (
+                      <div className="mt-2 space-y-1 rounded-md border border-border p-3 text-xs">
+                        <p><span className="text-muted-foreground">Reference: </span>{referenceCodeForSlot(slot.id)}</p>
+                        <p><span className="text-muted-foreground">Amount: </span>{amountForSlot(slot.durationMinutes, slot.subject)} PLN</p>
+                        <p><span className="text-muted-foreground">Account holder: </span>{BANK_DETAILS.accountHolder}</p>
+                        <p><span className="text-muted-foreground">IBAN: </span>{BANK_DETAILS.iban}</p>
+                        <p><span className="text-muted-foreground">Bank: </span>{BANK_DETAILS.bankName}</p>
                       </div>
                     )}
-
-                    <div className="mt-3 flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setMoveTarget(slot)}>Move</Button>
-                      <Button variant="ghost" size="sm" onClick={() => setCancelTarget(slot)}>Cancel</Button>
-                    </div>
                   </div>
+                )}
+
+                <div className="mt-3 flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setMoveTarget(slot)}>Move</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setCancelTarget(slot)}>Cancel</Button>
                 </div>
               </li>
             );
@@ -245,9 +234,9 @@ export default function ParentDashboardPage() {
       {batchPayment && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-xl bg-background p-6 shadow-xl">
-            <h2 className="font-display text-2xl text-foreground">Combined payment created</h2>
+            <h2 className="font-display text-2xl text-foreground">Payment created</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Please transfer payment using the details below to cover all selected sessions.
+              Please transfer payment using the details below to cover the selected sessions.
             </p>
             <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
               <p><span className="text-muted-foreground">Reference: </span>{batchPayment.referenceCode}</p>
