@@ -29,9 +29,6 @@ export type Slot = {
   bookedByStudentId: string | null;
   bookedAt: string | null;
   subject: string | null;
-  // NULL for one-off slots. Shared by every occurrence created together
-  // via "repeat weekly", so the whole series can be identified and
-  // deleted together later.
   recurrenceId: string | null;
   createdAt: string;
 };
@@ -236,11 +233,15 @@ export function listSlotsForTutor(
   return slots;
 }
 
+type NewSlotInput = {
+  tutorId: string;
+  date: string;
+  startTime: string;
+  durationMinutes: number;
+};
+
 export async function createSlot(
-  input: Omit
-    Slot,
-    'id' | 'status' | 'paymentStatus' | 'paymentBatchId' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'subject' | 'recurrenceId' | 'createdAt'
-  >,
+  input: NewSlotInput,
   options?: { repeatWeekly?: boolean }
 ): Promise<Slot | { created: Slot[]; skippedDates: string[] }> {
   const result = await api<Slot | { created: Slot[]; skippedDates: string[] }>('/api/slots', {
