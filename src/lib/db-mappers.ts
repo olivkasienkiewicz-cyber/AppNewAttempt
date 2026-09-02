@@ -50,6 +50,7 @@ export function rowToSlot(row: Record<string, unknown>): Slot {
     durationMinutes: Number(row.duration_minutes),
     status: row.status as Slot['status'],
     paymentStatus: row.payment_status as Slot['paymentStatus'],
+    paymentBatchId: (row.payment_batch_id as string | null) ?? null,
     meetingUrl: (row.meeting_url as string | null) ?? null,
     bookedByStudentId: (row.booked_by_student_id as string | null) ?? null,
     bookedAt: row.booked_at ? new Date(row.booked_at as string).toISOString() : null,
