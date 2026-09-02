@@ -24,6 +24,7 @@ export type Slot = {
   durationMinutes: number;
   status: SlotStatus;
   paymentStatus: PaymentStatus;
+  paymentBatchId: string | null;
   meetingUrl: string | null;
   bookedByStudentId: string | null;
   bookedAt: string | null;
@@ -236,9 +237,9 @@ export function listSlotsForTutor(
 }
 
 export async function createSlot(
-  input: Omit<
+  input: Omit
     Slot,
-    'id' | 'status' | 'paymentStatus' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'subject' | 'recurrenceId' | 'createdAt'
+    'id' | 'status' | 'paymentStatus' | 'paymentBatchId' | 'meetingUrl' | 'bookedByStudentId' | 'bookedAt' | 'subject' | 'recurrenceId' | 'createdAt'
   >,
   options?: { repeatWeekly?: boolean }
 ): Promise<Slot | { created: Slot[]; skippedDates: string[] }> {
@@ -375,11 +376,12 @@ export async function createRecurringBookingForStudent(input: {
 }
 
 export async function createPaymentBatch(
-  slotIds: string[]
+  slotIds: string[],
+  studentId?: string
 ): Promise<{ batchId: string; payment: PaymentInfo; slotIds: string[] }> {
   return api<{ batchId: string; payment: PaymentInfo; slotIds: string[] }>('/api/payment-batches', {
     method: 'POST',
-    body: JSON.stringify({ slotIds }),
+    body: JSON.stringify({ slotIds, studentId }),
   });
 }
 
