@@ -1,4 +1,4 @@
-import { Mail, Phone } from "lucide-react";
+import { Mail, Phone, Instagram } from "lucide-react";
 import Link from "next/link";
 
 export function SiteFooter() {
@@ -14,7 +14,6 @@ export function SiteFooter() {
               IB tutoring, done right.
             </p>
           </div>
-
           <div className="font-[family-name:var(--font-inter)]">
             <h4 className="text-sm uppercase tracking-wide text-[#7CD8C5] mb-3">
               Contact
@@ -32,15 +31,24 @@ export function SiteFooter() {
                   olivia@studilly.com
                 </a>
               </li>
+              <li>
+                
+                  href="https://instagram.com/studilly.platform"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors"
+                >
+                  <Instagram className="w-4 h-4 text-[#7CD8C5]" strokeWidth={1.75} />
+                  @studilly.platform
+                </a>
+              </li>
             </ul>
           </div>
         </div>
-
         <div className="border-t border-[#16B8A7]/20 mt-10 pt-6 font-[family-name:var(--font-inter)] text-xs text-[#F7F5F0]/60 leading-relaxed">
           <p>Studilly – Olivia Sienkiewicz</p>
           <p>ul. Komfortowa 6, 02-995 Warszawa, Polska</p>
           <p>NIP: 9512653365</p>
-
           <div className="mt-4 flex gap-4">
             <Link href="/regulamin" className="hover:text-[#16B8A7] transition-colors underline">
               Regulamin
@@ -49,7 +57,6 @@ export function SiteFooter() {
               Polityka Prywatności
             </Link>
           </div>
-
           <p className="mt-2 text-[#F7F5F0]/40">
             © {new Date().getFullYear()} Studilly. All rights reserved.
           </p>
@@ -58,4 +65,3 @@ export function SiteFooter() {
     </footer>
   );
 }
-
