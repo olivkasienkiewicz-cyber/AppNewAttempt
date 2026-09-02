@@ -32,12 +32,7 @@ export function SiteFooter() {
                 </a>
               </li>
               <li>
-                
-                  href="https://instagram.com/studilly.platform"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors"
-                >
+                <a href="https://instagram.com/studilly.platform" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 hover:text-[#16B8A7] transition-colors">
                   <Instagram className="w-4 h-4 text-[#7CD8C5]" strokeWidth={1.75} />
                   @studilly.platform
                 </a>
