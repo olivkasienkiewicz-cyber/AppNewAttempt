@@ -4,9 +4,6 @@ export type DiscountApplyResult =
   | { ok: true; discountedAmount: number; code: string }
   | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' };
 
-// Looks up a code without redeeming it — used to preview the discount
-// before committing to a booking or batch. Pass studentId when known so
-// the preview can reflect whether this student has already used the code.
 export async function previewDiscountCode(
   rawCode: string,
   originalAmount: number,
@@ -44,12 +41,6 @@ export async function previewDiscountCode(
   return { ok: true, discountedAmount, code };
 }
 
-// Redeems a code for a specific student. Unlimited total uses are allowed,
-// but each student can redeem a given code only once — enforced by the
-// UNIQUE (discount_code_id, student_id) constraint on
-// discount_code_redemptions, so two concurrent requests from the same
-// student can't both succeed. Call this only once the booking/batch it
-// applies to is actually being created.
 export async function redeemDiscountCode(
   rawCode: string,
   studentId: string,
@@ -77,7 +68,6 @@ export async function redeemDiscountCode(
       VALUES (${pre.id}, ${studentId})
     `;
   } catch (err) {
-    // Postgres unique_violation — this student already redeemed this code.
     if ((err as { code?: string }).code === '23505') {
       return { ok: false, error: 'already_redeemed' };
     }
