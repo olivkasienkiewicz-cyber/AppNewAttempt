@@ -276,13 +276,22 @@ export async function deleteSlot(
 export async function bookSlot(
   slotId: string,
   studentId: string,
-  subject: string | null
-): Promise<{ slot: Slot; payment: PaymentInfo } | { error: 'slot_taken' }> {
+  subject: string | null,
+  discountCode?: string
+): Promise
+  | { slot: Slot; payment: PaymentInfo; discountError: string | null }
+  | { error: 'slot_taken' }
+> {
   try {
-    const result = await api<{ slot: Slot; notifications: Notification[]; payment: PaymentInfo }>(
-      `/api/slots/${slotId}/book`,
-      { method: 'POST', body: JSON.stringify({ studentId, subject }) }
-    );
+    const result = await api<{
+      slot: Slot;
+      notifications: Notification[];
+      payment: PaymentInfo;
+      discountError: string | null;
+    }>(`/api/slots/${slotId}/book`, {
+      method: 'POST',
+      body: JSON.stringify({ studentId, subject, discountCode }),
+    });
     snapshot = {
       ...snapshot,
       slots: { ...snapshot.slots, [result.slot.id]: result.slot },
@@ -292,7 +301,7 @@ export async function bookSlot(
       },
     };
     emit();
-    return { slot: result.slot, payment: result.payment };
+    return { slot: result.slot, payment: result.payment, discountError: result.discountError };
   } catch (err) {
     if (err instanceof ApiError && err.status === 409) {
       return { error: 'slot_taken' };
@@ -378,11 +387,12 @@ export async function createRecurringBookingForStudent(input: {
 
 export async function createPaymentBatch(
   slotIds: string[],
-  studentId?: string
+  studentId?: string,
+  discountCode?: string
 ): Promise<{ batchId: string; payment: PaymentInfo; slotIds: string[] }> {
   return api<{ batchId: string; payment: PaymentInfo; slotIds: string[] }>('/api/payment-batches', {
     method: 'POST',
-    body: JSON.stringify({ slotIds, studentId }),
+    body: JSON.stringify({ slotIds, studentId, discountCode }),
   });
 }
 
