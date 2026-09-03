@@ -271,7 +271,7 @@ export default function StudentBrowsePage() {
 
   const showPaymentDetails = isActingAsParent || !effectiveStudent?.parentId;
 
-  const handleConfirm = async (subject: string | null) => {
+  const handleConfirm = async (subject: string | null, discountCode: string | null) => {
     if (!pendingBooking) return;
     if (!effectiveStudent) {
       toast.error(isActingAsParent ? 'No linked student found on your account.' : 'You need to be signed in to book a slot.');
@@ -280,11 +280,19 @@ export default function StudentBrowsePage() {
     }
     try {
       if (pendingBooking.kind === 'fixed') {
-        const result = await bookSlot(pendingBooking.slot.id, effectiveStudent.id, subject);
+        const result = await bookSlot(pendingBooking.slot.id, effectiveStudent.id, subject, discountCode ?? undefined);
         if ('error' in result) {
           toast.error('That slot was just taken');
         } else {
           toast.success('Booking confirmed');
+          if (discountCode && result.discountError) {
+            const messages: Record<string, string> = {
+              not_found: "That discount code wasn't valid, so the session was booked at full price.",
+              already_redeemed: 'That discount code has already been used — booked at full price.',
+              wrong_type: "That code isn't valid for single sessions — booked at full price.",
+            };
+            toast.info(messages[result.discountError] ?? 'The discount code could not be applied.');
+          }
           setPaymentInfo(result.payment);
         }
       } else {
@@ -649,4 +657,3 @@ export default function StudentBrowsePage() {
     </main>
   );
 }
-
