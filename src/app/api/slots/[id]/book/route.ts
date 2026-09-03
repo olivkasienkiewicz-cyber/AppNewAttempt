@@ -5,7 +5,7 @@ import { rowToSlot, rowToNotification, rowToUser } from '@/lib/db-mappers';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS, ADMIN_EMAIL } from '@/lib/payment';
 import { sendEmail } from '@/lib/email';
 import { isSelfOrLinkedParent } from '@/lib/parent-access';
-import { notifyLinkedParent } from '@/lib/parent-notify';
+import { redeemDiscountCode } from '@/lib/discount';
 
 function labelsForUser(user: { subjects: { subject: string; detail: string | null }[] }): string[] {
   return user.subjects.map((ts) => {
@@ -26,12 +26,19 @@ export async function POST(
   } catch {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
-  const { studentId, subject } = (body ?? {}) as { studentId?: unknown; subject?: unknown };
+  const { studentId, subject, discountCode } = (body ?? {}) as {
+    studentId?: unknown;
+    subject?: unknown;
+    discountCode?: unknown;
+  };
   if (typeof studentId !== 'string' || !studentId) {
     return NextResponse.json({ error: 'invalid_student_id' }, { status: 400 });
   }
   if (subject !== undefined && subject !== null && typeof subject !== 'string') {
     return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
+  }
+  if (discountCode !== undefined && discountCode !== null && typeof discountCode !== 'string') {
+    return NextResponse.json({ error: 'invalid_discount_code' }, { status: 400 });
   }
 
   const session = await auth();
@@ -64,6 +71,29 @@ export async function POST(
     return NextResponse.json({ error: 'slot_taken' }, { status: 409 });
   }
   const slot = rowToSlot(updated[0]);
+
+  // Discount is applied AFTER the booking succeeds, so a bad or already-
+  // used code never blocks the booking itself — the student just doesn't
+  // get the discount if it doesn't work out.
+  const fullAmount = amountForSlot(slot.durationMinutes, slot.subject);
+  let finalAmount = fullAmount;
+  let appliedCode: string | null = null;
+  let discountError: string | null = null;
+
+  if (typeof discountCode === 'string' && discountCode.trim().length > 0) {
+    const result = await redeemDiscountCode(discountCode, studentId, fullAmount, 'single');
+    if (result.ok) {
+      finalAmount = result.discountedAmount;
+      appliedCode = result.code;
+    } else {
+      discountError = result.error;
+    }
+  }
+
+  await sql`
+    UPDATE slots SET amount = ${finalAmount}, discount_code = ${appliedCode}
+    WHERE id = ${slotId}
+  `;
 
   const [studentRows, tutorRows] = await Promise.all([
     sql`SELECT * FROM users WHERE id = ${studentId}`,
@@ -101,9 +131,11 @@ export async function POST(
 
   const payment = {
     referenceCode: referenceCodeForSlot(slot.id),
-    amount: amountForSlot(slot.durationMinutes, slot.subject),
+    amount: finalAmount,
     currency: 'PLN',
     bankDetails: BANK_DETAILS,
+    discountApplied: appliedCode !== null,
+    discountCode: appliedCode,
   };
 
   await Promise.all([
@@ -147,24 +179,13 @@ export async function POST(
         payment,
       }),
     }),
-    notifyLinkedParent(
-      studentId,
-      `Booking confirmed for ${student?.name ?? 'your child'} — ${ddmm} at ${slot.startTime}`,
-      parentBookingEmailHtml({
-        studentName: student?.name ?? 'your child',
-        tutorName: tutor?.name ?? 'their tutor',
-        ddmm,
-        startTime: slot.startTime,
-        sessionSubject: slot.subject,
-        payment,
-      })
-    ),
   ]);
 
   return NextResponse.json({
     slot,
     notifications: [rowToNotification(tutorNotifRows[0]), rowToNotification(studentNotifRows[0])],
     payment,
+    discountError,
   });
 }
 
@@ -179,6 +200,8 @@ function studentEmailHtml(args: {
     amount: number;
     currency: string;
     bankDetails: { accountHolder: string; iban: string; bankName: string };
+    discountApplied: boolean;
+    discountCode: string | null;
   };
 }): string {
   const { studentName, tutorName, ddmm, startTime, sessionSubject, payment } = args;
@@ -187,6 +210,7 @@ function studentEmailHtml(args: {
       <h2>Booking confirmed</h2>
       <p>Hi ${studentName},</p>
       <p>Your session with <strong>${tutorName}</strong> is booked for <strong>${ddmm}</strong> at <strong>${startTime}</strong>${sessionSubject ? ` — <strong>${sessionSubject}</strong>` : ''}.</p>
+      ${payment.discountApplied ? `<p style="color: #16B8A7;">Discount code <strong>${payment.discountCode}</strong> applied!</p>` : ''}
       <h3>Payment by bank transfer</h3>
       <table style="width: 100%; border-collapse: collapse;">
         <tr><td style="padding: 4px 0; color: #666;">Account holder</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.accountHolder}</td></tr>
@@ -230,6 +254,8 @@ function adminEmailHtml(args: {
     amount: number;
     currency: string;
     bankDetails: { accountHolder: string; iban: string; bankName: string };
+    discountApplied: boolean;
+    discountCode: string | null;
   };
 }): string {
   const { studentName, studentEmail, tutorName, ddmm, startTime, sessionSubject, payment } = args;
@@ -241,41 +267,11 @@ function adminEmailHtml(args: {
         <tr><td style="padding: 4px 0; color: #666;">Tutor</td><td style="padding: 4px 0; text-align: right;">${tutorName}</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Subject</td><td style="padding: 4px 0; text-align: right;">${sessionSubject ?? '—'}</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Date</td><td style="padding: 4px 0; text-align: right;">${ddmm} at ${startTime}</td></tr>
+        ${payment.discountApplied ? `<tr><td style="padding: 4px 0; color: #666;">Discount code</td><td style="padding: 4px 0; text-align: right;">${payment.discountCode}</td></tr>` : ''}
         <tr><td style="padding: 4px 0; color: #666;">Amount due</td><td style="padding: 4px 0; text-align: right;">${payment.amount.toFixed(2)} ${payment.currency}</td></tr>
         <tr><td style="padding: 4px 0; color: #666;">Reference code</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
       </table>
       <p style="color: #666; font-size: 13px;">Watch for a transfer matching this reference code, then confirm payment in the admin bookings page.</p>
-    </div>
-  `;
-}
-
-function parentBookingEmailHtml(args: {
-  studentName: string;
-  tutorName: string;
-  ddmm: string;
-  startTime: string;
-  sessionSubject: string | null;
-  payment: {
-    referenceCode: string;
-    amount: number;
-    currency: string;
-    bankDetails: { accountHolder: string; iban: string; bankName: string };
-  };
-}): string {
-  const { studentName, tutorName, ddmm, startTime, sessionSubject, payment } = args;
-  return `
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2>Booking confirmed</h2>
-      <p>A session for <strong>${studentName}</strong> with <strong>${tutorName}</strong> is booked for <strong>${ddmm}</strong> at <strong>${startTime}</strong>${sessionSubject ? ` — <strong>${sessionSubject}</strong>` : ''}.</p>
-      <h3>Payment by bank transfer</h3>
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr><td style="padding: 4px 0; color: #666;">Account holder</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.accountHolder}</td></tr>
-        <tr><td style="padding: 4px 0; color: #666;">IBAN</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.iban}</td></tr>
-        <tr><td style="padding: 4px 0; color: #666;">Bank</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.bankName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #666;">Amount</td><td style="padding: 4px 0; text-align: right;">${payment.amount.toFixed(2)} ${payment.currency}</td></tr>
-        <tr><td style="padding: 4px 0; color: #666;">Reference</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
-      </table>
-      <p style="color: #666; font-size: 13px;">Please include the reference code exactly as shown so we can match your transfer to this booking. You can also view this anytime from your dashboard.</p>
     </div>
   `;
 }
