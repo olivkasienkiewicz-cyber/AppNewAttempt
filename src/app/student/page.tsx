@@ -24,6 +24,7 @@ const WINDOW_STEP_MIN = 30;
 const DURATION_OPTIONS = [60, 90, 120];
 const UNI_SUPPORT_SUBJECT = 'University Application Support';
 const EGZAMIN_SUBJECT = 'Egzamin ósmoklasisty';
+const PINNED_TUTOR_NAME = 'Olivia Sienkiewicz';
 
 type PendingBooking =
   | { kind: 'fixed'; slot: Slot }
@@ -76,7 +77,13 @@ export default function StudentBrowsePage() {
   const effectiveStudent = isActingAsParent ? linkedStudent : currentUser;
 
   const tutors = useMemo<User[]>(() =>
-    Object.values(state.users).filter((u) => u.role === 'tutor').sort((a, b) => a.name.localeCompare(b.name)),
+    Object.values(state.users)
+      .filter((u) => u.role === 'tutor')
+      .sort((a, b) => {
+        if (a.name === PINNED_TUTOR_NAME) return -1;
+        if (b.name === PINNED_TUTOR_NAME) return 1;
+        return a.name.localeCompare(b.name);
+      }),
     [state.users]);
 
   const [searchText, setSearchText] = useState('');
