@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
+import { format } from 'date-fns';
 import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -194,8 +195,9 @@ export default function StudentBrowsePage() {
     const set = new Set<string>();
     for (const s of freeSlotsForTutor) set.add(s.date);
     if (selectedTutorId) {
+      const todayKey = format(new Date(), 'yyyy-MM-dd');
       for (const w of Object.values(state.availabilityWindows)) {
-        if (w.tutorId === selectedTutorId) set.add(w.date);
+        if (w.tutorId === selectedTutorId && w.date >= todayKey) set.add(w.date);
       }
     }
     return Array.from(set).sort();
