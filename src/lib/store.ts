@@ -31,6 +31,7 @@ export type Slot = {
   subject: string | null;
   recurrenceId: string | null;
   createdAt: string;
+  amount: number | null;
 };
 
 export type AvailabilityWindow = {
@@ -60,6 +61,8 @@ export type PaymentInfo = {
     iban: string;
     bankName: string;
   };
+  discountApplied?: boolean;
+  discountCode?: string | null;
 };
 
 export type AppState = {
