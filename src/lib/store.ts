@@ -273,15 +273,16 @@ export async function deleteSlot(
   emit();
 }
 
+type BookSlotSuccess = { slot: Slot; payment: PaymentInfo; discountError: string | null };
+type BookSlotFailure = { error: 'slot_taken' };
+type BookSlotResult = BookSlotSuccess | BookSlotFailure;
+
 export async function bookSlot(
   slotId: string,
   studentId: string,
   subject: string | null,
   discountCode?: string
-): Promise
-  | { slot: Slot; payment: PaymentInfo; discountError: string | null }
-  | { error: 'slot_taken' }
-> {
+): Promise<BookSlotResult> {
   try {
     const result = await api<{
       slot: Slot;
