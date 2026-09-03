@@ -51,7 +51,7 @@ export default function ParentDashboardPage() {
   const [busy, setBusy] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [creatingBatchSize, setCreatingBatchSize] = useState<number | null>(null);
-  const [batchPayment, setBatchPayment] = useState<{ referenceCode: string; amount: number; currency: string } | null>(null);
+  const [batchPayment, setBatchPayment] = useState<{ referenceCode: string; amount: number; currency: string; discountApplied?: boolean; discountCode?: string | null } | null>(null);
   const [discountCode, setDiscountCode] = useState('');
   const [discountError, setDiscountError] = useState<string | null>(null);
 
@@ -72,6 +72,9 @@ export default function ParentDashboardPage() {
     try {
       const result = await createPaymentBatch(slotIds, linkedStudent.id, discountCode.trim() || undefined);
       setBatchPayment(result.payment);
+      if (discountCode.trim() && result.payment.discountApplied) {
+        toast.success(`Code ${result.payment.discountCode} applied`);
+      }
       setDiscountCode('');
       await refreshState();
     } catch (err) {
@@ -205,6 +208,7 @@ export default function ParentDashboardPage() {
           {bookings.map((slot) => {
             const tutor = state.users[slot.tutorId];
             const isRevealed = revealedId === slot.id;
+            const displayAmount = slot.amount ?? amountForSlot(slot.durationMinutes, slot.subject);
             return (
               <li key={slot.id} className="rounded-lg border border-border px-4 py-3">
                 <p className="text-sm font-medium text-foreground">
@@ -234,7 +238,7 @@ export default function ParentDashboardPage() {
                     {isRevealed && (
                       <div className="mt-2 space-y-1 rounded-md border border-border p-3 text-xs">
                         <p><span className="text-muted-foreground">Reference: </span>{referenceCodeForSlot(slot.id)}</p>
-                        <p><span className="text-muted-foreground">Amount: </span>{amountForSlot(slot.durationMinutes, slot.subject)} PLN</p>
+                        <p><span className="text-muted-foreground">Amount: </span>{displayAmount} PLN</p>
                         <p><span className="text-muted-foreground">Account holder: </span>{BANK_DETAILS.accountHolder}</p>
                         <p><span className="text-muted-foreground">IBAN: </span>{BANK_DETAILS.iban}</p>
                         <p><span className="text-muted-foreground">Bank: </span>{BANK_DETAILS.bankName}</p>
@@ -260,6 +264,9 @@ export default function ParentDashboardPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               Please transfer payment using the details below to cover the selected sessions.
             </p>
+            {batchPayment.discountApplied && (
+              <p className="mt-2 text-sm text-[#16B8A7]">Discount code {batchPayment.discountCode} applied!</p>
+            )}
             <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
               <p><span className="text-muted-foreground">Reference: </span>{batchPayment.referenceCode}</p>
               <p><span className="text-muted-foreground">Amount: </span>{batchPayment.amount} {batchPayment.currency}</p>
