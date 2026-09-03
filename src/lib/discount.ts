@@ -2,14 +2,16 @@ import { sql } from '@/lib/db';
 
 export type DiscountApplyResult =
   | { ok: true; discountedAmount: number; code: string }
-  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' };
+  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' };
 
 // Looks up a code without redeeming it — used to preview the discount
-// before committing to a booking or batch.
+// before committing to a booking or batch. Pass studentId when known so
+// the preview can reflect whether this student has already used the code.
 export async function previewDiscountCode(
   rawCode: string,
   originalAmount: number,
-  context: 'single' | 'batch'
+  context: 'single' | 'batch',
+  studentId?: string
 ): Promise<DiscountApplyResult> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { ok: false, error: 'not_found' };
@@ -18,8 +20,21 @@ export async function previewDiscountCode(
   if (rows.length === 0) return { ok: false, error: 'not_found' };
   const row = rows[0];
 
-  if (row.redeemed_at !== null) return { ok: false, error: 'already_redeemed' };
-  if (row.applies_to !== 'both' && row.applies_to !== context) return { ok: false, error: 'wrong_type' };
+  if (row.valid_until !== null && new Date(row.valid_until as string) < new Date()) {
+    return { ok: false, error: 'expired' };
+  }
+
+  if (row.applies_to !== 'both' && row.applies_to !== context) {
+    return { ok: false, error: 'wrong_type' };
+  }
+
+  if (studentId) {
+    const existing = await sql`
+      SELECT 1 FROM discount_code_redemptions
+      WHERE discount_code_id = ${row.id} AND student_id = ${studentId}
+    `;
+    if (existing.length > 0) return { ok: false, error: 'already_redeemed' };
+  }
 
   const discountedAmount = computeDiscountedAmount(
     originalAmount,
@@ -29,9 +44,12 @@ export async function previewDiscountCode(
   return { ok: true, discountedAmount, code };
 }
 
-// Atomically redeems a code (one-time use — the WHERE clause ensures two
-// concurrent requests can't both succeed on the same code). Call this only
-// once the booking/batch it applies to is actually being created.
+// Redeems a code for a specific student. Unlimited total uses are allowed,
+// but each student can redeem a given code only once — enforced by the
+// UNIQUE (discount_code_id, student_id) constraint on
+// discount_code_redemptions, so two concurrent requests from the same
+// student can't both succeed. Call this only once the booking/batch it
+// applies to is actually being created.
 export async function redeemDiscountCode(
   rawCode: string,
   studentId: string,
@@ -44,27 +62,34 @@ export async function redeemDiscountCode(
   const preRows = await sql`SELECT * FROM discount_codes WHERE code = ${code}`;
   if (preRows.length === 0) return { ok: false, error: 'not_found' };
   const pre = preRows[0];
+
+  if (pre.valid_until !== null && new Date(pre.valid_until as string) < new Date()) {
+    return { ok: false, error: 'expired' };
+  }
+
   if (pre.applies_to !== 'both' && pre.applies_to !== context) {
     return { ok: false, error: 'wrong_type' };
   }
 
-  const redeemed = await sql`
-    UPDATE discount_codes
-    SET redeemed_at = now(), redeemed_by_student_id = ${studentId}
-    WHERE code = ${code} AND redeemed_at IS NULL
-    RETURNING *
-  `;
-  if (redeemed.length === 0) {
-    return { ok: false, error: 'already_redeemed' };
+  try {
+    await sql`
+      INSERT INTO discount_code_redemptions (discount_code_id, student_id)
+      VALUES (${pre.id}, ${studentId})
+    `;
+  } catch (err) {
+    // Postgres unique_violation — this student already redeemed this code.
+    if ((err as { code?: string }).code === '23505') {
+      return { ok: false, error: 'already_redeemed' };
+    }
+    throw err;
   }
 
-  const row = redeemed[0];
   const discountedAmount = computeDiscountedAmount(
     originalAmount,
-    row.discount_type as 'percent' | 'flat',
-    Number(row.discount_value)
+    pre.discount_type as 'percent' | 'flat',
+    Number(pre.discount_value)
   );
-  return { ok: true, discountedAmount, code };
+  return { ok: true, discountedAmount, code: pre.code as string };
 }
 
 function computeDiscountedAmount(original: number, type: 'percent' | 'flat', value: number): number {
