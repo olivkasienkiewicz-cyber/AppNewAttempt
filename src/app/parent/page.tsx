@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useAppState, refreshState, createPaymentBatch, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS } from '@/lib/payment';
@@ -40,9 +41,6 @@ export default function ParentDashboardPage() {
       .sort((a, b) => a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date));
   }, [state.slots, linkedStudent]);
 
-  // Chronologically ordered, eligible-for-a-new-batch sessions (unpaid,
-  // not already part of a pending batch). Preset buttons take the next
-  // N of these in order — no manual selection.
   const eligibleOrdered = useMemo(
     () => bookings.filter((s) => s.paymentStatus === 'unpaid' && !s.paymentBatchId),
     [bookings]
@@ -54,6 +52,8 @@ export default function ParentDashboardPage() {
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [creatingBatchSize, setCreatingBatchSize] = useState<number | null>(null);
   const [batchPayment, setBatchPayment] = useState<{ referenceCode: string; amount: number; currency: string } | null>(null);
+  const [discountCode, setDiscountCode] = useState('');
+  const [discountError, setDiscountError] = useState<string | null>(null);
 
   const moveOptions = useMemo<Slot[]>(() => {
     if (!moveTarget) return [];
@@ -68,12 +68,24 @@ export default function ParentDashboardPage() {
     if (!linkedStudent || eligibleOrdered.length < size) return;
     const slotIds = eligibleOrdered.slice(0, size).map((s) => s.id);
     setCreatingBatchSize(size);
+    setDiscountError(null);
     try {
-      const result = await createPaymentBatch(slotIds, linkedStudent.id);
+      const result = await createPaymentBatch(slotIds, linkedStudent.id, discountCode.trim() || undefined);
       setBatchPayment(result.payment);
+      setDiscountCode('');
       await refreshState();
-    } catch {
-      toast.error("Couldn't create the payment — try again.");
+    } catch (err) {
+      const messages: Record<string, string> = {
+        discount_code_not_found: "That code isn't valid.",
+        discount_code_already_used: 'That code has already been used.',
+        discount_code_not_valid_for_batches: "That code can't be used on combined payments.",
+      };
+      const errorCode = (err as { body?: { error?: string } })?.body?.error;
+      if (errorCode && messages[errorCode]) {
+        setDiscountError(messages[errorCode]);
+      } else {
+        toast.error("Couldn't create the payment — try again.");
+      }
     } finally {
       setCreatingBatchSize(null);
     }
@@ -173,6 +185,16 @@ export default function ParentDashboardPage() {
               );
             })}
           </div>
+          <div className="mt-3 flex gap-2">
+            <Input
+              type="text"
+              value={discountCode}
+              onChange={(e) => { setDiscountCode(e.target.value); if (discountError) setDiscountError(null); }}
+              placeholder="Discount code (optional)"
+              className="h-9 flex-1 text-sm"
+            />
+          </div>
+          {discountError && <p className="mt-1 text-xs text-destructive">{discountError}</p>}
         </div>
       )}
 
