@@ -409,6 +409,38 @@ export async function createPaymentBatch(
   });
 }
 
+type BookSlotsBundleSuccess = {
+  batchId: string;
+  payment: PaymentInfo;
+  discountError: string | null;
+  slots: Slot[];
+};
+type BookSlotsBundleFailure = { error: 'slots_not_available' };
+type BookSlotsBundleResult = BookSlotsBundleSuccess | BookSlotsBundleFailure;
+
+export async function bookSlotsBundle(
+  slotIds: string[],
+  studentId: string,
+  discountCode?: string
+): Promise<BookSlotsBundleResult> {
+  try {
+    const result = await api<BookSlotsBundleSuccess>('/api/bookings/bundle', {
+      method: 'POST',
+      body: JSON.stringify({ slotIds, studentId, discountCode }),
+    });
+    const nextSlots = { ...snapshot.slots };
+    for (const slot of result.slots) nextSlots[slot.id] = slot;
+    snapshot = { ...snapshot, slots: nextSlots };
+    emit();
+    return result;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 409) {
+      return { error: 'slots_not_available' };
+    }
+    throw err;
+  }
+}
+
 export function listNotifications(userId: string): Notification[] {
   return Object.values(snapshot.notifications)
     .filter((n) => n.recipientUserId === userId)
