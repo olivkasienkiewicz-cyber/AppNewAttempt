@@ -31,7 +31,6 @@ export type Slot = {
   subject: string | null;
   recurrenceId: string | null;
   createdAt: string;
-  amount: number | null;
 };
 
 export type AvailabilityWindow = {
@@ -61,8 +60,6 @@ export type PaymentInfo = {
     iban: string;
     bankName: string;
   };
-  discountApplied?: boolean;
-  discountCode?: string | null;
 };
 
 export type AppState = {
@@ -347,21 +344,27 @@ export async function deleteAvailabilityWindow(windowId: number): Promise<void> 
   emit();
 }
 
+type BookWindowSuccess = { slot: Slot; payment: PaymentInfo; discountError: string | null };
+type BookWindowFailure = { error: 'not_available' };
+type BookWindowResult = BookWindowSuccess | BookWindowFailure;
+
 export async function bookAvailabilityWindow(input: {
   tutorId: string;
   date: string;
   startTime: string;
   durationMinutes: number;
   subject: string | null;
-}): Promise<{ slot: Slot; payment: PaymentInfo } | { error: 'not_available' }> {
+  discountCode?: string;
+  studentId?: string;
+}): Promise<BookWindowResult> {
   try {
-    const result = await api<{ slot: Slot; payment: PaymentInfo }>('/api/availability-windows/book', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    const result = await api<{ slot: Slot; payment: PaymentInfo; discountError: string | null }>(
+      '/api/availability-windows/book',
+      { method: 'POST', body: JSON.stringify(input) }
+    );
     snapshot = { ...snapshot, slots: { ...snapshot.slots, [result.slot.id]: result.slot } };
     emit();
-    return result;
+    return { slot: result.slot, payment: result.payment, discountError: result.discountError };
   } catch (err) {
     if (err instanceof ApiError && err.status === 409) {
       return { error: 'not_available' };
