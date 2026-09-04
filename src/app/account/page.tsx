@@ -30,6 +30,7 @@ export default function AccountPage() {
   const [childEmail, setChildEmail] = useState('');
   const [sendingChild, setSendingChild] = useState(false);
   const [sentChild, setSentChild] = useState(false);
+  const [childInviteSkipped, setChildInviteSkipped] = useState(false);
 
   const linkedParent = currentUser?.parentId ? state.users[currentUser.parentId] : null;
   const linkedChild = currentUser
@@ -153,6 +154,17 @@ export default function AccountPage() {
             <p className="mt-2 text-sm text-muted-foreground">
               {linkedChild.name} is linked to your account.
             </p>
+          ) : childInviteSkipped ? (
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p className="text-sm text-muted-foreground">You can link your child&apos;s account anytime.</p>
+              <button
+                type="button"
+                onClick={() => setChildInviteSkipped(false)}
+                className="text-sm font-medium text-[#16B8A7] hover:underline"
+              >
+                Add now
+              </button>
+            </div>
           ) : (
             <>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -161,18 +173,27 @@ export default function AccountPage() {
               {sentChild ? (
                 <p className="mt-3 text-sm text-foreground">Confirmation sent — ask them to check their email.</p>
               ) : (
-                <div className="mt-3 flex gap-2">
-                  <Input
-                    type="email"
-                    value={childEmail}
-                    onChange={(e) => setChildEmail(e.target.value)}
-                    placeholder="child@example.com"
-                    className="h-10 flex-1"
-                  />
-                  <Button size="sm" disabled={sendingChild} onClick={() => void handleInviteChild()}>
-                    {sendingChild ? 'Sending…' : 'Add a child'}
-                  </Button>
-                </div>
+                <>
+                  <div className="mt-3 flex gap-2">
+                    <Input
+                      type="email"
+                      value={childEmail}
+                      onChange={(e) => setChildEmail(e.target.value)}
+                      placeholder="child@example.com"
+                      className="h-10 flex-1"
+                    />
+                    <Button size="sm" disabled={sendingChild} onClick={() => void handleInviteChild()}>
+                      {sendingChild ? 'Sending…' : 'Add a child'}
+                    </Button>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setChildInviteSkipped(true)}
+                    className="mt-2 text-sm font-medium text-muted-foreground hover:underline"
+                  >
+                    Skip for now
+                  </button>
+                </>
               )}
             </>
           )}
