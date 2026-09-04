@@ -4,10 +4,12 @@ import { sql } from '@/lib/db';
 import { rowToSlot, rowToNotification, rowToUser } from '@/lib/db-mappers';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS, ADMIN_EMAIL } from '@/lib/payment';
 import { sendEmail } from '@/lib/email';
+import { isSelfOrLinkedParent } from '@/lib/parent-access';
+import { redeemDiscountCode } from '@/lib/discount';
 
 export const dynamic = 'force-dynamic';
 
-const ALLOWED_DURATIONS = [60, 90, 120];
+const ALLOWED_DURATIONS = [30, 60, 90, 120];
 
 function toMinutes(t: string): number {
   const [h, m] = t.split(':').map(Number);
@@ -27,7 +29,6 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
-  const studentId = session.user.id;
 
   let body: unknown;
   try {
@@ -35,12 +36,14 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
-  const { tutorId, date, startTime, durationMinutes, subject } = (body ?? {}) as {
+  const { tutorId, date, startTime, durationMinutes, subject, discountCode, studentId: requestedStudentId } = (body ?? {}) as {
     tutorId?: unknown;
     date?: unknown;
     startTime?: unknown;
     durationMinutes?: unknown;
     subject?: unknown;
+    discountCode?: unknown;
+    studentId?: unknown;
   };
 
   if (typeof tutorId !== 'string' || !tutorId) {
@@ -57,6 +60,21 @@ export async function POST(req: Request) {
   }
   if (subject !== undefined && subject !== null && typeof subject !== 'string') {
     return NextResponse.json({ error: 'invalid_subject' }, { status: 400 });
+  }
+  if (discountCode !== undefined && discountCode !== null && typeof discountCode !== 'string') {
+    return NextResponse.json({ error: 'invalid_discount_code' }, { status: 400 });
+  }
+
+  const studentId = typeof requestedStudentId === 'string' && requestedStudentId ? requestedStudentId : session.user.id;
+  if (!(await isSelfOrLinkedParent(session.user.id, studentId))) {
+    return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  }
+
+  // 30-minute sessions only exist for redeeming a duration-locked code —
+  // reject the request outright if no valid matching code is supplied,
+  // so 30-min slots can never be booked as an ordinary session.
+  if (durationMinutes === 30 && (typeof discountCode !== 'string' || !discountCode.trim())) {
+    return NextResponse.json({ error: 'duration_requires_code' }, { status: 400 });
   }
 
   const tutorRows = await sql`SELECT * FROM users WHERE id = ${tutorId}`;
@@ -106,6 +124,23 @@ export async function POST(req: Request) {
   `;
   const slot = rowToSlot(inserted[0]);
 
+  const fullAmount = amountForSlot(slot.durationMinutes, slot.subject);
+  let finalAmount = fullAmount;
+  let appliedCode: string | null = null;
+  let discountError: string | null = null;
+
+  if (typeof discountCode === 'string' && discountCode.trim().length > 0) {
+    const result = await redeemDiscountCode(discountCode, studentId, fullAmount, 'single', durationMinutes);
+    if (result.ok) {
+      finalAmount = result.discountedAmount;
+      appliedCode = result.code;
+    } else {
+      discountError = result.error;
+    }
+  }
+
+  await sql`UPDATE slots SET amount = ${finalAmount}, discount_code = ${appliedCode} WHERE id = ${slot.id}`;
+
   const studentRows = await sql`SELECT * FROM users WHERE id = ${studentId}`;
   const student = studentRows[0] ? rowToUser(studentRows[0]) : null;
   const tutor = tutorUser;
@@ -129,10 +164,14 @@ export async function POST(req: Request) {
 
   const payment = {
     referenceCode: referenceCodeForSlot(slot.id),
-    amount: amountForSlot(slot.durationMinutes, slot.subject),
+    amount: finalAmount,
     currency: 'PLN',
     bankDetails: BANK_DETAILS,
   };
+
+  const discountLine = appliedCode
+    ? `<p style="color: #16B8A7;">Discount code <strong>${appliedCode}</strong> applied!</p>`
+    : '';
 
   await Promise.all([
     studentEmail
@@ -143,6 +182,7 @@ export async function POST(req: Request) {
             <h2>Booking confirmed</h2>
             <p>Hi ${student?.name ?? 'there'},</p>
             <p>Your session with <strong>${tutor?.name ?? 'your tutor'}</strong> is booked for <strong>${ddmm}</strong> at <strong>${slot.startTime}</strong> (${slot.durationMinutes} min)${slot.subject ? ` — <strong>${slot.subject}</strong>` : ''}.</p>
+            ${discountLine}
             <h3>Payment by bank transfer</h3>
             <table style="width: 100%; border-collapse: collapse;">
               <tr><td style="padding: 4px 0; color: #666;">Account holder</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.accountHolder}</td></tr>
@@ -177,6 +217,7 @@ export async function POST(req: Request) {
           <tr><td style="padding: 4px 0; color: #666;">Tutor</td><td style="padding: 4px 0; text-align: right;">${tutor?.name ?? 'Unknown'}</td></tr>
           <tr><td style="padding: 4px 0; color: #666;">Subject</td><td style="padding: 4px 0; text-align: right;">${slot.subject ?? '—'}</td></tr>
           <tr><td style="padding: 4px 0; color: #666;">Date</td><td style="padding: 4px 0; text-align: right;">${ddmm} at ${slot.startTime} (${slot.durationMinutes} min)</td></tr>
+          ${appliedCode ? `<tr><td style="padding: 4px 0; color: #666;">Discount code</td><td style="padding: 4px 0; text-align: right;">${appliedCode}</td></tr>` : ''}
           <tr><td style="padding: 4px 0; color: #666;">Amount due</td><td style="padding: 4px 0; text-align: right;">${payment.amount.toFixed(2)} ${payment.currency}</td></tr>
           <tr><td style="padding: 4px 0; color: #666;">Reference code</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
         </table>
@@ -184,5 +225,5 @@ export async function POST(req: Request) {
     }),
   ]);
 
-  return NextResponse.json({ slot, payment });
+  return NextResponse.json({ slot, payment, discountError });
 }
