@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { toast } from 'sonner';
 import { useAppState, refreshState, createPaymentBatch, type Slot } from '@/lib/store';
@@ -25,6 +26,7 @@ function formatDayLabel(date: string): string {
 export default function ParentDashboardPage() {
   const hydrated = useHasHydrated();
   const state = useAppState();
+  const router = useRouter();
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
 
   const linkedStudent = useMemo(() => {
@@ -32,14 +34,20 @@ export default function ParentDashboardPage() {
     return Object.values(state.users).find((u) => u.role === 'student' && u.parentId === currentUser.id) ?? null;
   }, [state.users, currentUser]);
 
+  // Without a linked student, the parent may have booked sessions under
+  // their own account (see the fast-path fix in student/page.tsx) — fall
+  // back to showing those instead of an empty list.
+  const effectiveBookingOwnerId = linkedStudent?.id ?? currentUser?.id ?? null;
+  const bookingOwnerName = linkedStudent?.name ?? currentUser?.name ?? 'Your';
+
   const bookings = useMemo<Slot[]>(() => {
-    if (!linkedStudent) return [];
+    if (!effectiveBookingOwnerId) return [];
     const now = new Date();
     return Object.values(state.slots)
-      .filter((s) => s.status === 'booked' && s.bookedByStudentId === linkedStudent.id)
+      .filter((s) => s.status === 'booked' && s.bookedByStudentId === effectiveBookingOwnerId)
       .filter((s) => startDateTime(s.date, s.startTime).getTime() > now.getTime())
       .sort((a, b) => a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date));
-  }, [state.slots, linkedStudent]);
+  }, [state.slots, effectiveBookingOwnerId]);
 
   const eligibleOrdered = useMemo(
     () => bookings.filter((s) => s.paymentStatus === 'unpaid' && !s.paymentBatchId),
@@ -65,12 +73,12 @@ export default function ParentDashboardPage() {
   }, [moveTarget, state.slots]);
 
   const handlePayBatch = async (size: number) => {
-    if (!linkedStudent || eligibleOrdered.length < size) return;
+    if (!effectiveBookingOwnerId || eligibleOrdered.length < size) return;
     const slotIds = eligibleOrdered.slice(0, size).map((s) => s.id);
     setCreatingBatchSize(size);
     setDiscountError(null);
     try {
-      const result = await createPaymentBatch(slotIds, linkedStudent.id, discountCode.trim() || undefined);
+      const result = await createPaymentBatch(slotIds, effectiveBookingOwnerId, discountCode.trim() || undefined);
       setBatchPayment(result.payment);
       if (discountCode.trim() && result.payment.discountApplied) {
         toast.success(`Code ${result.payment.discountCode} applied`);
@@ -140,9 +148,17 @@ export default function ParentDashboardPage() {
 
   const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
 
+  const header = (
+    <PageHeader>
+      <Button variant="ghost" onClick={() => router.push('/student')} className="h-10">Book a session</Button>
+      <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
+    </PageHeader>
+  );
+
   if (!hydrated || !state.dataLoaded) {
     return (
       <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+        {header}
         <p className="text-sm text-muted-foreground">Loading…</p>
       </main>
     );
@@ -150,23 +166,19 @@ export default function ParentDashboardPage() {
   if (!currentUser || currentUser.role !== 'parent') {
     return <div className="p-6">This page is for linked parents.</div>;
   }
-  if (!linkedStudent) {
-    return (
-      <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
-        <EmptyState>No linked student found on your account.</EmptyState>
-      </main>
-    );
-  }
 
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
-      <PageHeader>
-        <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
-      </PageHeader>
+      {header}
 
       <div className="mb-8 space-y-1">
-        <p className="eyebrow">{linkedStudent.name}&apos;s sessions</p>
+        <p className="eyebrow">{bookingOwnerName}&apos;s sessions</p>
         <h1 className="font-display text-4xl text-foreground">Bookings &amp; payments</h1>
+        {!linkedStudent && (
+          <p className="text-sm text-muted-foreground">
+            No student is linked to your account yet — sessions booked under your own account show up here.
+          </p>
+        )}
       </div>
 
       {eligibleOrdered.length > 0 && (
