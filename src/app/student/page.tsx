@@ -12,6 +12,7 @@ import {
 import { ALL_SUBJECTS, EGZAMIN_OSMOKLASISTY_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -22,7 +23,7 @@ import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
 
 const WINDOW_STEP_MIN = 30;
-const DURATION_OPTIONS = [60, 90, 120];
+const BASE_DURATION_OPTIONS = [60, 90, 120];
 const UNI_SUPPORT_SUBJECT = 'University Application Support';
 const EGZAMIN_SUBJECT = 'Egzamin ósmoklasisty';
 const PINNED_TUTOR_NAME = 'Olivia Sienkiewicz';
@@ -221,6 +222,52 @@ export default function StudentBrowsePage() {
 
   const [windowDuration, setWindowDuration] = useState<number>(60);
 
+  // Free-lesson code check for unlocking a 30-min duration option
+  const [trialCode, setTrialCode] = useState('');
+  const [checkingTrialCode, setCheckingTrialCode] = useState(false);
+  const [trialCodeUnlocked, setTrialCodeUnlocked] = useState<string | null>(null);
+  const [trialCodeError, setTrialCodeError] = useState<string | null>(null);
+
+  const durationOptions = useMemo(
+    () => (trialCodeUnlocked ? [30, ...BASE_DURATION_OPTIONS] : BASE_DURATION_OPTIONS),
+    [trialCodeUnlocked]
+  );
+
+  const handleCheckTrialCode = async () => {
+    const code = trialCode.trim();
+    if (!code) return;
+    setCheckingTrialCode(true);
+    setTrialCodeError(null);
+    try {
+      const res = await fetch('/api/discount-codes/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        const messages: Record<string, string> = {
+          not_found: "That code isn't valid.",
+          expired: 'That code has expired.',
+          already_redeemed: 'That code has already been used.',
+        };
+        setTrialCodeError(messages[data?.error] ?? 'Something went wrong — try again.');
+        return;
+      }
+      if (data.requiredDurationMinutes === 30) {
+        setTrialCodeUnlocked(code.toUpperCase());
+        setWindowDuration(30);
+        toast.success('Free 30-minute lesson unlocked!');
+      } else {
+        setTrialCodeError("That code isn't for a free 30-minute lesson — try it at checkout instead.");
+      }
+    } catch {
+      setTrialCodeError("Couldn't reach the server.");
+    } finally {
+      setCheckingTrialCode(false);
+    }
+  };
+
   const windowStartOptionsForDay = useMemo<string[]>(() => {
     if (!selectedTutorId || !selectedDay) return [];
     const dayWindows = Object.values(state.availabilityWindows)
@@ -299,6 +346,8 @@ export default function StudentBrowsePage() {
               not_found: "That discount code wasn't valid, so the session was booked at full price.",
               already_redeemed: 'That discount code has already been used — booked at full price.',
               wrong_type: "That code isn't valid for single sessions — booked at full price.",
+              wrong_duration: "That code didn't match this session length — booked at full price.",
+              expired: 'That discount code has expired — booked at full price.',
             };
             toast.info(messages[result.discountError] ?? 'The discount code could not be applied.');
           }
@@ -306,17 +355,31 @@ export default function StudentBrowsePage() {
         }
       } else {
         if (!selectedTutorId) return;
+        // For a 30-min booking, the unlocked trial code rides along
+        // automatically — it's not something typed into the modal.
+        const effectiveDiscountCode = pendingBooking.duration === 30 ? trialCodeUnlocked ?? undefined : discountCode ?? undefined;
         const result = await bookAvailabilityWindow({
           tutorId: selectedTutorId,
           date: pendingBooking.date,
           startTime: pendingBooking.startTime,
           durationMinutes: pendingBooking.duration,
           subject,
+          discountCode: effectiveDiscountCode,
+          studentId: effectiveStudent.id,
         });
         if ('error' in result) {
           toast.error('That time was just taken — pick another.');
         } else {
           toast.success('Booking confirmed');
+          if (result.discountError) {
+            toast.error("That free-lesson code couldn't be applied — please contact us.");
+          } else if (pendingBooking.duration === 30) {
+            // The 30-min option only exists for one booking — reset it
+            // now that it's been used, so it disappears from the picker.
+            setTrialCodeUnlocked(null);
+            setTrialCode('');
+            setWindowDuration(60);
+          }
           setPaymentInfo(result.payment);
         }
       }
@@ -569,13 +632,33 @@ export default function StudentBrowsePage() {
                       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Choose your own length
                       </p>
+
+                      {!trialCodeUnlocked && (
+                        <div className="mb-3 flex items-center gap-2">
+                          <Input
+                            type="text"
+                            value={trialCode}
+                            onChange={(e) => { setTrialCode(e.target.value); if (trialCodeError) setTrialCodeError(null); }}
+                            placeholder="Mam kod na darmową lekcję 30 min"
+                            className="h-9 flex-1 text-sm"
+                          />
+                          <Button size="sm" variant="outline" disabled={!trialCode.trim() || checkingTrialCode} onClick={() => void handleCheckTrialCode()}>
+                            {checkingTrialCode ? '…' : 'Sprawdź'}
+                          </Button>
+                        </div>
+                      )}
+                      {trialCodeError && <p className="mb-3 text-xs text-destructive">{trialCodeError}</p>}
+                      {trialCodeUnlocked && (
+                        <p className="mb-3 text-xs text-success">30-minutowa darmowa lekcja odblokowana kodem {trialCodeUnlocked}.</p>
+                      )}
+
                       <div className="mb-3 w-36">
                         <Select value={String(windowDuration)} onValueChange={(v) => setWindowDuration(Number(v))}>
                           <SelectTrigger className="w-full" aria-label="Session length">
                             <SelectValue>{(value: string) => `${value} min`}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
-                            {DURATION_OPTIONS.map((d) => (
+                            {durationOptions.map((d) => (
                               <SelectItem key={d} value={String(d)}>{d} min</SelectItem>
                             ))}
                           </SelectContent>
