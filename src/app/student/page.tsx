@@ -7,9 +7,10 @@ import { format } from 'date-fns';
 import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  bookSlot, bookAvailabilityWindow, useAppState, type Slot, type User, type PaymentInfo,
+  bookSlot, bookAvailabilityWindow, bookSlotsBundle, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
 import { ALL_SUBJECTS, EGZAMIN_OSMOKLASISTY_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
+import { amountForSlot } from '@/lib/payment';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +28,7 @@ const BASE_DURATION_OPTIONS = [60, 90, 120];
 const UNI_SUPPORT_SUBJECT = 'University Application Support';
 const EGZAMIN_SUBJECT = 'Egzamin ósmoklasisty';
 const PINNED_TUTOR_NAME = 'Olivia Sienkiewicz';
+const MIN_BUNDLE_SIZE = 2;
 
 type PendingBooking =
   | { kind: 'fixed'; slot: Slot }
@@ -327,6 +329,79 @@ export default function StudentBrowsePage() {
 
   const showPaymentDetails = isActingAsParent || !effectiveStudent?.parentId;
 
+  // --- Bundle selection (book multiple fixed slots, pay together) ---
+  const [bundleMode, setBundleMode] = useState(false);
+  const [selectedSlotIds, setSelectedSlotIds] = useState<Set<string>>(new Set());
+  const [bundleDiscountCode, setBundleDiscountCode] = useState('');
+  const [bundleDiscountError, setBundleDiscountError] = useState<string | null>(null);
+  const [bundleSubmitting, setBundleSubmitting] = useState(false);
+
+  const selectedSlots = useMemo<Slot[]>(
+    () => Array.from(selectedSlotIds)
+      .map((id) => state.slots[id])
+      .filter((s): s is Slot => Boolean(s)),
+    [selectedSlotIds, state.slots]
+  );
+  const selectedTotal = useMemo(
+    () => selectedSlots.reduce((sum, s) => sum + amountForSlot(s.durationMinutes, s.subject), 0),
+    [selectedSlots]
+  );
+
+  const toggleBundleMode = () => {
+    setBundleMode((prev) => !prev);
+    setSelectedSlotIds(new Set());
+    setBundleDiscountCode('');
+    setBundleDiscountError(null);
+  };
+
+  const toggleSlotSelection = (slotId: string) => {
+    setSelectedSlotIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(slotId)) next.delete(slotId);
+      else next.add(slotId);
+      return next;
+    });
+    if (bundleDiscountError) setBundleDiscountError(null);
+  };
+
+  const handleBundleCheckout = async () => {
+    if (!effectiveStudent || selectedSlotIds.size < MIN_BUNDLE_SIZE) return;
+    setBundleSubmitting(true);
+    setBundleDiscountError(null);
+    try {
+      const result = await bookSlotsBundle(
+        Array.from(selectedSlotIds),
+        effectiveStudent.id,
+        bundleDiscountCode.trim() || undefined
+      );
+      if ('error' in result) {
+        toast.error('One of those sessions was just taken — please reselect.');
+        return;
+      }
+      toast.success(`${selectedSlots.length} sessions booked`);
+      if (result.discountError) {
+        const messages: Record<string, string> = {
+          not_found: "That discount code wasn't valid, so the bundle was booked at full price.",
+          already_redeemed: 'That discount code has already been used — booked at full price.',
+          wrong_type: "That code isn't valid for bundles — booked at full price.",
+          wrong_duration: "That code didn't match — booked at full price.",
+          expired: 'That discount code has expired — booked at full price.',
+        };
+        toast.info(messages[result.discountError] ?? 'The discount code could not be applied.');
+      } else if (result.payment.discountApplied) {
+        toast.success(`Code ${result.payment.discountCode} applied`);
+      }
+      setPaymentInfo(result.payment);
+      setBundleMode(false);
+      setSelectedSlotIds(new Set());
+      setBundleDiscountCode('');
+    } catch {
+      toast.error("Couldn't reach the server — check your connection and try again.");
+    } finally {
+      setBundleSubmitting(false);
+    }
+  };
+
   const handleConfirm = async (subject: string | null, discountCode: string | null) => {
     if (!pendingBooking) return;
     if (!effectiveStudent) {
@@ -403,7 +478,7 @@ export default function StudentBrowsePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 pt-8 pb-12 sm:px-6">
+    <main className="mx-auto w-full max-w-3xl px-4 pt-8 pb-24 sm:px-6">
       <PageHeader>
         <Button variant="ghost" size="icon" aria-label="Notifications"
           onClick={() => router.push('/notifications')} className="h-10 w-10">
@@ -421,13 +496,35 @@ export default function StudentBrowsePage() {
         <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
       </PageHeader>
 
-      <div className="mb-8 space-y-1">
-        <p className="eyebrow">Browse</p>
-        <h1 className="font-display text-4xl text-foreground">Available sessions</h1>
-        {isActingAsParent && linkedStudent && (
-          <p className="text-sm text-muted-foreground">Booking for {linkedStudent.name}</p>
-        )}
+      <div className="mb-8 flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="eyebrow">Browse</p>
+          <h1 className="font-display text-4xl text-foreground">Available sessions</h1>
+          {isActingAsParent && linkedStudent && (
+            <p className="text-sm text-muted-foreground">Booking for {linkedStudent.name}</p>
+          )}
+        </div>
+        <Button
+          variant={bundleMode ? 'default' : 'outline'}
+          size="sm"
+          onClick={toggleBundleMode}
+          className="mt-1 shrink-0"
+        >
+          {bundleMode ? 'Cancel selection' : 'Book multiple'}
+        </Button>
       </div>
+
+      {bundleMode && (
+        <div className="mb-6 rounded-lg border border-[#16B8A7]/40 bg-[#16B8A7]/5 px-4 py-3">
+          <p className="text-sm text-foreground">
+            Select two or more sessions below, from any tutor, then pay for them together.
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {selectedSlotIds.size} session{selectedSlotIds.size === 1 ? '' : 's'} selected
+            {selectedSlots.length > 0 ? ` · ${selectedTotal} PLN` : ''}
+          </p>
+        </div>
+      )}
 
       {!state.dataLoaded ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -613,21 +710,28 @@ export default function StudentBrowsePage() {
                         Fixed sessions
                       </p>
                       <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                        {slotsOnDay.map((slot) => (
-                          <button
-                            key={slot.id}
-                            type="button"
-                            onClick={() => setPendingBooking({ kind: 'fixed', slot })}
-                            className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors"
-                          >
-                            {slot.startTime}
-                          </button>
-                        ))}
+                        {slotsOnDay.map((slot) => {
+                          const isSelected = selectedSlotIds.has(slot.id);
+                          return (
+                            <button
+                              key={slot.id}
+                              type="button"
+                              onClick={() => bundleMode ? toggleSlotSelection(slot.id) : setPendingBooking({ kind: 'fixed', slot })}
+                              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                                isSelected
+                                  ? 'border-[#16B8A7] bg-[#16B8A7]/10 text-[#16B8A7]'
+                                  : 'border-border text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7]'
+                              }`}
+                            >
+                              {slot.startTime}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
 
-                  {hasAnyWindowsForDay && (
+                  {!bundleMode && hasAnyWindowsForDay && (
                     <div>
                       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Choose your own length
@@ -688,13 +792,15 @@ export default function StudentBrowsePage() {
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    onClick={() => setSlotRequestModalOpen(true)}
-                    className="mt-4 text-sm font-medium text-[#16B8A7] hover:underline"
-                  >
-                    Don't see a time that works? Request one
-                  </button>
+                  {!bundleMode && (
+                    <button
+                      type="button"
+                      onClick={() => setSlotRequestModalOpen(true)}
+                      className="mt-4 text-sm font-medium text-[#16B8A7] hover:underline"
+                    >
+                      Don't see a time that works? Request one
+                    </button>
+                  )}
                 </div>
               )}
             </>
@@ -720,6 +826,9 @@ export default function StudentBrowsePage() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   Please transfer payment within 48 hours using the details below.
                 </p>
+                {paymentInfo.discountApplied && (
+                  <p className="mt-2 text-sm text-[#16B8A7]">Discount code {paymentInfo.discountCode} applied!</p>
+                )}
                 <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
                   <p><span className="text-muted-foreground">Reference: </span>{paymentInfo.referenceCode}</p>
                   <p><span className="text-muted-foreground">Amount: </span>{paymentInfo.amount} {paymentInfo.currency}</p>
@@ -734,6 +843,36 @@ export default function StudentBrowsePage() {
               </p>
             )}
             <Button className="mt-6 w-full" onClick={() => setPaymentInfo(null)}>Done</Button>
+          </div>
+        </div>
+      )}
+
+      {bundleMode && selectedSlotIds.size > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+          <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-foreground">
+                {selectedSlotIds.size} session{selectedSlotIds.size === 1 ? '' : 's'} · {selectedTotal} PLN
+              </p>
+              {selectedSlotIds.size < MIN_BUNDLE_SIZE && (
+                <p className="text-xs text-muted-foreground">Select at least {MIN_BUNDLE_SIZE} sessions to book as a bundle.</p>
+              )}
+              {bundleDiscountError && <p className="text-xs text-destructive">{bundleDiscountError}</p>}
+            </div>
+            <Input
+              type="text"
+              value={bundleDiscountCode}
+              onChange={(e) => { setBundleDiscountCode(e.target.value); if (bundleDiscountError) setBundleDiscountError(null); }}
+              placeholder="Discount code (optional)"
+              className="h-9 w-full text-sm sm:w-48"
+            />
+            <Button
+              disabled={selectedSlotIds.size < MIN_BUNDLE_SIZE || bundleSubmitting}
+              onClick={() => void handleBundleCheckout()}
+              className="sm:shrink-0"
+            >
+              {bundleSubmitting ? 'Booking…' : 'Book & Pay'}
+            </Button>
           </div>
         </div>
       )}
