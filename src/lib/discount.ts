@@ -2,13 +2,14 @@ import { sql } from '@/lib/db';
 
 export type DiscountApplyResult =
   | { ok: true; discountedAmount: number; code: string }
-  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' };
+  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' | 'wrong_duration' };
 
 export async function previewDiscountCode(
   rawCode: string,
   originalAmount: number,
   context: 'single' | 'batch',
-  studentId?: string
+  studentId?: string,
+  durationMinutes?: number
 ): Promise<DiscountApplyResult> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { ok: false, error: 'not_found' };
@@ -23,13 +24,13 @@ export async function previewDiscountCode(
   if (row.applies_to !== 'both' && row.applies_to !== context) {
     return { ok: false, error: 'wrong_type' };
   }
+  if (row.required_duration_minutes !== null && durationMinutes !== undefined && Number(row.required_duration_minutes) !== durationMinutes) {
+    return { ok: false, error: 'wrong_duration' };
+  }
 
-  // Single-use codes (e.g. lottery slips) are dead after their first
-  // redemption by anyone — checked directly on discount_codes.redeemed_at.
   if (row.single_use) {
     if (row.redeemed_at !== null) return { ok: false, error: 'already_redeemed' };
   } else if (studentId) {
-    // Reusable codes only block the SAME student redeeming twice.
     const existing = await sql`
       SELECT 1 FROM discount_code_redemptions
       WHERE discount_code_id = ${row.id} AND student_id = ${studentId}
@@ -49,7 +50,8 @@ export async function redeemDiscountCode(
   rawCode: string,
   studentId: string,
   originalAmount: number,
-  context: 'single' | 'batch'
+  context: 'single' | 'batch',
+  durationMinutes?: number
 ): Promise<DiscountApplyResult> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { ok: false, error: 'not_found' };
@@ -64,10 +66,11 @@ export async function redeemDiscountCode(
   if (pre.applies_to !== 'both' && pre.applies_to !== context) {
     return { ok: false, error: 'wrong_type' };
   }
+  if (pre.required_duration_minutes !== null && durationMinutes !== undefined && Number(pre.required_duration_minutes) !== durationMinutes) {
+    return { ok: false, error: 'wrong_duration' };
+  }
 
   if (pre.single_use) {
-    // Atomic: only succeeds if nobody has redeemed this code yet —
-    // the WHERE clause prevents two people redeeming it in a race.
     const claimed = await sql`
       UPDATE discount_codes
       SET redeemed_at = now(), redeemed_by_student_id = ${studentId}
