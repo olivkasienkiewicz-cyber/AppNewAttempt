@@ -347,7 +347,7 @@ export async function deleteAvailabilityWindow(windowId: number): Promise<void> 
   emit();
 }
 
-export async function bookAvailabilityWindow(input: {
+type BookAvailabilityWindowInput = {
   tutorId: string;
   date: string;
   startTime: string;
@@ -355,18 +355,19 @@ export async function bookAvailabilityWindow(input: {
   subject: string | null;
   discountCode?: string;
   studentId?: string;
-}): Promise
-  | { slot: Slot; payment: PaymentInfo; discountError: string | null }
-  | { error: 'not_available' }
-> {
+};
+type BookAvailabilityWindowSuccess = { slot: Slot; payment: PaymentInfo; discountError: string | null };
+type BookAvailabilityWindowFailure = { error: 'not_available' };
+type BookAvailabilityWindowResult = BookAvailabilityWindowSuccess | BookAvailabilityWindowFailure;
+
+export async function bookAvailabilityWindow(
+  input: BookAvailabilityWindowInput
+): Promise<BookAvailabilityWindowResult> {
   try {
-    const result = await api<{ slot: Slot; payment: PaymentInfo; discountError: string | null }>(
-      '/api/availability-windows/book',
-      {
-        method: 'POST',
-        body: JSON.stringify(input),
-      }
-    );
+    const result = await api<BookAvailabilityWindowSuccess>('/api/availability-windows/book', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    });
     snapshot = { ...snapshot, slots: { ...snapshot.slots, [result.slot.id]: result.slot } };
     emit();
     return result;
