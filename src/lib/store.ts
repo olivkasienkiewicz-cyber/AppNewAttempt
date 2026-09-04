@@ -353,12 +353,20 @@ export async function bookAvailabilityWindow(input: {
   startTime: string;
   durationMinutes: number;
   subject: string | null;
-}): Promise<{ slot: Slot; payment: PaymentInfo } | { error: 'not_available' }> {
+  discountCode?: string;
+  studentId?: string;
+}): Promise
+  | { slot: Slot; payment: PaymentInfo; discountError: string | null }
+  | { error: 'not_available' }
+> {
   try {
-    const result = await api<{ slot: Slot; payment: PaymentInfo }>('/api/availability-windows/book', {
-      method: 'POST',
-      body: JSON.stringify(input),
-    });
+    const result = await api<{ slot: Slot; payment: PaymentInfo; discountError: string | null }>(
+      '/api/availability-windows/book',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }
+    );
     snapshot = { ...snapshot, slots: { ...snapshot.slots, [result.slot.id]: result.slot } };
     emit();
     return result;
