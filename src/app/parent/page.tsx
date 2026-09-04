@@ -34,9 +34,6 @@ export default function ParentDashboardPage() {
     return Object.values(state.users).find((u) => u.role === 'student' && u.parentId === currentUser.id) ?? null;
   }, [state.users, currentUser]);
 
-  // Without a linked student, the parent may have booked sessions under
-  // their own account (see the fast-path fix in student/page.tsx) — fall
-  // back to showing those instead of an empty list.
   const effectiveBookingOwnerId = linkedStudent?.id ?? currentUser?.id ?? null;
   const bookingOwnerName = linkedStudent?.name ?? currentUser?.name ?? 'Your';
 
@@ -151,6 +148,7 @@ export default function ParentDashboardPage() {
   const header = (
     <PageHeader>
       <Button variant="ghost" onClick={() => router.push('/student')} className="h-10">Book a session</Button>
+      <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
       <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
     </PageHeader>
   );
