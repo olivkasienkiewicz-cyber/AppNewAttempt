@@ -20,12 +20,16 @@ export async function previewDiscountCode(
   if (row.valid_until !== null && new Date(row.valid_until as string) < new Date()) {
     return { ok: false, error: 'expired' };
   }
-
   if (row.applies_to !== 'both' && row.applies_to !== context) {
     return { ok: false, error: 'wrong_type' };
   }
 
-  if (studentId) {
+  // Single-use codes (e.g. lottery slips) are dead after their first
+  // redemption by anyone — checked directly on discount_codes.redeemed_at.
+  if (row.single_use) {
+    if (row.redeemed_at !== null) return { ok: false, error: 'already_redeemed' };
+  } else if (studentId) {
+    // Reusable codes only block the SAME student redeeming twice.
     const existing = await sql`
       SELECT 1 FROM discount_code_redemptions
       WHERE discount_code_id = ${row.id} AND student_id = ${studentId}
@@ -57,21 +61,34 @@ export async function redeemDiscountCode(
   if (pre.valid_until !== null && new Date(pre.valid_until as string) < new Date()) {
     return { ok: false, error: 'expired' };
   }
-
   if (pre.applies_to !== 'both' && pre.applies_to !== context) {
     return { ok: false, error: 'wrong_type' };
   }
 
-  try {
-    await sql`
-      INSERT INTO discount_code_redemptions (discount_code_id, student_id)
-      VALUES (${pre.id}, ${studentId})
+  if (pre.single_use) {
+    // Atomic: only succeeds if nobody has redeemed this code yet —
+    // the WHERE clause prevents two people redeeming it in a race.
+    const claimed = await sql`
+      UPDATE discount_codes
+      SET redeemed_at = now(), redeemed_by_student_id = ${studentId}
+      WHERE id = ${pre.id} AND redeemed_at IS NULL
+      RETURNING *
     `;
-  } catch (err) {
-    if ((err as { code?: string }).code === '23505') {
+    if (claimed.length === 0) {
       return { ok: false, error: 'already_redeemed' };
     }
-    throw err;
+  } else {
+    try {
+      await sql`
+        INSERT INTO discount_code_redemptions (discount_code_id, student_id)
+        VALUES (${pre.id}, ${studentId})
+      `;
+    } catch (err) {
+      if ((err as { code?: string }).code === '23505') {
+        return { ok: false, error: 'already_redeemed' };
+      }
+      throw err;
+    }
   }
 
   const discountedAmount = computeDiscountedAmount(
