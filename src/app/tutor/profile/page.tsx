@@ -1,4 +1,4 @@
-'use client';
+,'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import {
   ALL_SUBJECTS,
   EGZAMIN_OSMOKLASISTY_SUBJECTS,
   POLSKA_MATURA_SUBJECTS,
+  LANGUAGE_CLASSES_SUBJECTS,
   LEVEL_OPTIONS,
   MAX_DETAIL_LEN,
   isMultiInstanceSubject,
@@ -204,6 +205,8 @@ export default function TutorProfilePage() {
                     ? 'Which subject? (required)'
                     : draftSubject === 'Polska Matura'
                     ? 'Which subject and level? (required)'
+                    : draftSubject === 'Language Classes'
+                    ? 'Which language? (required)'
                     : 'Countries / universities (optional)'}
                 </Label>
                 {draftSubject === 'Egzamin ósmoklasisty' ? (
@@ -224,6 +227,17 @@ export default function TutorProfilePage() {
                     </SelectTrigger>
                     <SelectContent>
                       {POLSKA_MATURA_SUBJECTS.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : draftSubject === 'Language Classes' ? (
+                  <Select value={draftDetail || undefined} onValueChange={(value) => setDraftDetail(value ?? '')}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LANGUAGE_CLASSES_SUBJECTS.map((s) => (
                         <SelectItem key={s} value={s}>{s}</SelectItem>
                       ))}
                     </SelectContent>
