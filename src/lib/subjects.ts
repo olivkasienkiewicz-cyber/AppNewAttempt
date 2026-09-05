@@ -28,6 +28,7 @@ export const SERVICE_SUBJECTS = [
   'Egzaminy wstępne do szkół IB',
   'Egzamin ósmoklasisty',
   'Polska Matura',
+  'Language Classes',
   'Other',
 ] as const;
 export const ALL_SUBJECTS = [...IB_SUBJECTS, ...SERVICE_SUBJECTS] as const;
@@ -54,39 +55,57 @@ export const POLSKA_MATURA_LEVELS = ['poziom podstawowy', 'poziom rozszerzony'] 
 export const POLSKA_MATURA_SUBJECTS = POLSKA_MATURA_BASE_SUBJECTS.flatMap((subject) =>
   POLSKA_MATURA_LEVELS.map((level) => `${subject} – ${level}` as const)
 );
+// The languages offered under "Language Classes" — a fixed dropdown for
+// the tutor's `detail` field, same pattern as EGZAMIN_OSMOKLASISTY_SUBJECTS.
+// Flat rate regardless of language (see RATE_LANGUAGE_CLASSES_PLN below).
+export const LANGUAGE_CLASSES_SUBJECTS = ['French', 'English', 'German'] as const;
 export function subjectRequiresLevel(subject: string): boolean {
   return (IB_SUBJECTS as readonly string[]).includes(subject);
 }
 // "University Application Support", "Egzamin ósmoklasisty", "Polska
-// Matura", and "Other" all carry a free-text detail field. For University
-// Application Support it's optional context (e.g. "UK, US, Canada"). For
-// "Other" it's required and IS the custom subject name. For "Egzamin
-// ósmoklasisty" it specifies which exam component the tutor teaches —
-// selected from EGZAMIN_OSMOKLASISTY_SUBJECTS. For "Polska Matura" it
-// specifies subject AND level combined — selected from
-// POLSKA_MATURA_SUBJECTS (e.g. "Matematyka – poziom rozszerzony").
+// Matura", "Language Classes", and "Other" all carry a free-text detail
+// field. For University Application Support it's optional context (e.g.
+// "UK, US, Canada"). For "Other" it's required and IS the custom subject
+// name. For "Egzamin ósmoklasisty" it specifies which exam component the
+// tutor teaches — selected from EGZAMIN_OSMOKLASISTY_SUBJECTS. For
+// "Polska Matura" it specifies subject AND level combined — selected
+// from POLSKA_MATURA_SUBJECTS (e.g. "Matematyka – poziom rozszerzony").
+// For "Language Classes" it specifies which language — selected from
+// LANGUAGE_CLASSES_SUBJECTS.
 export function subjectSupportsDetail(subject: string): boolean {
   return (
     subject === 'University Application Support' ||
     subject === 'Egzamin ósmoklasisty' ||
     subject === 'Polska Matura' ||
+    subject === 'Language Classes' ||
     subject === 'Other'
   );
 }
 export function subjectDetailRequired(subject: string): boolean {
-  return subject === 'Other' || subject === 'Egzamin ósmoklasisty' || subject === 'Polska Matura';
+  return (
+    subject === 'Other' ||
+    subject === 'Egzamin ósmoklasisty' ||
+    subject === 'Polska Matura' ||
+    subject === 'Language Classes'
+  );
 }
 export const MAX_DETAIL_LEN = 100;
 // Subjects a tutor can list more than once, using `detail` to distinguish
 // entries — e.g. two 'Egzamin ósmoklasisty' entries for different exam
 // components (Matematyka, Język angielski), several 'Polska Matura'
 // entries for different subject+level combinations (Matematyka – poziom
-// podstawowy, Historia – poziom rozszerzony, etc.), or several custom
-// 'Other' subjects. Everywhere "does this tutor already have subject X"
-// is checked, these need identity-by-(subject + detail) instead of
-// identity-by-subject-alone.
+// podstawowy, Historia – poziom rozszerzony, etc.), several 'Language
+// Classes' entries for different languages (French, German), or several
+// custom 'Other' subjects. Everywhere "does this tutor already have
+// subject X" is checked, these need identity-by-(subject + detail)
+// instead of identity-by-subject-alone.
 export function isMultiInstanceSubject(subject: string): boolean {
-  return subject === 'Other' || subject === 'Egzamin ósmoklasisty' || subject === 'Polska Matura';
+  return (
+    subject === 'Other' ||
+    subject === 'Egzamin ósmoklasisty' ||
+    subject === 'Polska Matura' ||
+    subject === 'Language Classes'
+  );
 }
 
 // --- Student-facing pricing (what students pay per hour) ---
@@ -97,6 +116,8 @@ export const RATE_MATURA_PODSTAWOWY_PLN = 160;
 export const RATE_MATURA_ROZSZERZONY_PLN = 180;
 export const RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN = 300;
 export const RATE_SAT_PREPARATION_PLN = 250;
+// Flat rate regardless of which language is taught.
+export const RATE_LANGUAGE_CLASSES_PLN = 180;
 // Subject labels saved on a booked slot can be composite (e.g.
 // "Egzamin ósmoklasisty – Matematyka" or "Polska Matura – Matematyka –
 // poziom rozszerzony", combining the base subject with the tutor's
@@ -112,6 +133,7 @@ export function hourlyRateForSubject(subject: string): number {
   }
   if (subject.startsWith('University Application Support')) return RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN;
   if (subject.startsWith('SAT Preparation')) return RATE_SAT_PREPARATION_PLN;
+  if (subject.startsWith('Language Classes')) return RATE_LANGUAGE_CLASSES_PLN;
   return RATE_IB_PLN;
 }
 
@@ -127,12 +149,16 @@ export const TUTOR_RATE_EGZAMIN_OSMOKLASISTY_PLN = 80;
 export const TUTOR_RATE_MATURA_PLN = 100;
 export const TUTOR_RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN = 100;
 export const TUTOR_RATE_SAT_PREPARATION_PLN = 100;
+// Flat payout regardless of language. NOTE: not specified — matched to
+// the 100 PLN default most other service types use. Change if needed.
+export const TUTOR_RATE_LANGUAGE_CLASSES_PLN = 100;
 export function tutorPayoutRateForSubject(subject: string): number {
   if (subject.startsWith('Egzamin ósmoklasisty')) return TUTOR_RATE_EGZAMIN_OSMOKLASISTY_PLN;
   if (subject.startsWith('Egzaminy wstępne do szkół IB')) return TUTOR_RATE_IB_ENTRANCE_EXAM_PLN;
   if (subject.startsWith('Polska Matura')) return TUTOR_RATE_MATURA_PLN;
   if (subject.startsWith('University Application Support')) return TUTOR_RATE_UNIVERSITY_APPLICATION_SUPPORT_PLN;
   if (subject.startsWith('SAT Preparation')) return TUTOR_RATE_SAT_PREPARATION_PLN;
+  if (subject.startsWith('Language Classes')) return TUTOR_RATE_LANGUAGE_CLASSES_PLN;
   return TUTOR_RATE_IB_PLN;
 }
 
@@ -145,6 +171,7 @@ export function subjectDisplayLabel(ts: { subject: string; detail: string | null
   if (ts.subject === 'Other' && ts.detail) return ts.detail;
   if (ts.subject === 'Egzamin ósmoklasisty' && ts.detail) return `Egzamin ósmoklasisty – ${ts.detail}`;
   if (ts.subject === 'Polska Matura' && ts.detail) return `Polska Matura – ${ts.detail}`;
+  if (ts.subject === 'Language Classes' && ts.detail) return `Language Classes – ${ts.detail}`;
   return ts.subject;
 }
 export type TutorSubject = {
