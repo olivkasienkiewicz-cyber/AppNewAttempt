@@ -46,6 +46,8 @@ export default function MaterialsForTutorPage({ params }: { params: Promise<{ tu
     })();
   }, [tutorId, effectiveStudentId]);
 
+  const whiteboardLinkProps = { href: whiteboardUrl ?? '#', target: '_blank', rel: 'noopener noreferrer' };
+
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
       <PageHeader>
@@ -60,12 +62,7 @@ export default function MaterialsForTutorPage({ params }: { params: Promise<{ tu
       </div>
 
       {whiteboardUrl && (
-        
-          href={whiteboardUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mb-6 flex items-center justify-between rounded-lg border border-[#16B8A7]/40 bg-[#16B8A7]/5 px-4 py-3 text-sm font-medium text-[#16B8A7] hover:underline"
-        >
+        <a {...whiteboardLinkProps} className="mb-6 flex items-center justify-between rounded-lg border border-[#16B8A7]/40 bg-[#16B8A7]/5 px-4 py-3 text-sm font-medium text-[#16B8A7] hover:underline">
           Open whiteboard
           <ExternalLink className="h-4 w-4" />
         </a>
@@ -79,12 +76,7 @@ export default function MaterialsForTutorPage({ params }: { params: Promise<{ tu
         <ul className="space-y-2">
           {materials.map((m) => (
             <li key={m.id}>
-              
-                href={m.fileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 rounded-lg border border-border px-4 py-3 text-sm hover:border-[#16B8A7]"
-              >
+              <a href={m.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 rounded-lg border border-border px-4 py-3 text-sm hover:border-[#16B8A7]">
                 <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <span className="truncate">{m.fileName}</span>
               </a>
