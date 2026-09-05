@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { toast } from 'sonner';
+import { MessageCircle } from 'lucide-react';
 import { useAppState, refreshState, createPaymentBatch, type Slot } from '@/lib/store';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
@@ -148,6 +149,7 @@ export default function ParentDashboardPage() {
   const header = (
     <PageHeader>
       <Button variant="ghost" onClick={() => router.push('/student')} className="h-10">Book a session</Button>
+      <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
       <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
       <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
     </PageHeader>
@@ -221,11 +223,25 @@ export default function ParentDashboardPage() {
             const displayAmount = slot.amount ?? amountForSlot(slot.durationMinutes, slot.subject);
             return (
               <li key={slot.id} className="rounded-lg border border-border px-4 py-3">
-                <p className="text-sm font-medium text-foreground">
-                  {formatDayLabel(slot.date)} · {slot.startTime}
-                </p>
-                <p className="text-xs text-muted-foreground">{tutor?.name ?? 'Tutor'}</p>
-                {slot.subject && <p className="text-xs text-muted-foreground">{slot.subject}</p>}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {formatDayLabel(slot.date)} · {slot.startTime}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{tutor?.name ?? 'Tutor'}</p>
+                    {slot.subject && <p className="text-xs text-muted-foreground">{slot.subject}</p>}
+                  </div>
+                  {tutor && (
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/messages/${tutor.id}`)}
+                      aria-label={`Message ${tutor.name}`}
+                      className="shrink-0 rounded-full border border-border p-2 text-muted-foreground hover:border-[#16B8A7] hover:text-[#16B8A7]"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
                 <p className="mt-1 text-xs">
                   {slot.paymentStatus === 'paid' ? (
                     <span className="text-success">Paid</span>
