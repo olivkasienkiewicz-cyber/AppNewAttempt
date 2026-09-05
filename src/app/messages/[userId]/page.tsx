@@ -23,6 +23,23 @@ const MAX_LEN = 2000;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/pdf'];
 
+function MessageAttachment({ url, type }: { url: string; type: string | null }) {
+  const isImage = type !== null && type.startsWith('image/');
+  if (isImage) {
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer">
+        <img src={url} alt="Attachment" className="mb-1.5 max-h-64 rounded-md object-contain" />
+      </a>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="mb-1.5 flex items-center gap-1.5 rounded-md border border-current/30 px-2 py-1.5 text-xs">
+      <FileText className="h-4 w-4 shrink-0" />
+      <span className="truncate">View PDF attachment</span>
+    </a>
+  );
+}
+
 export default function MessageThreadPage({ params }: { params: Promise<{ userId: string }> }) {
   const { userId: otherUserId } = use(params);
   const state = useAppState();
@@ -140,7 +157,6 @@ export default function MessageThreadPage({ params }: { params: Promise<{ userId
         ) : (
           messages.map((m) => {
             const isMine = m.senderId === state.currentUserId;
-            const isImage = m.attachmentType?.startsWith('image/');
             return (
               <div key={m.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
                 <div
@@ -148,29 +164,8 @@ export default function MessageThreadPage({ params }: { params: Promise<{ userId
                     isMine ? 'bg-[#16B8A7] text-white' : 'bg-muted text-foreground'
                   }`}
                 >
-                  {m.attachmentUrl && isImage && (
-                    <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                      <img
-                        src={m.attachmentUrl}
-                        alt="Attachment"
-                        className="mb-1.5 max-h-64 rounded-md object-contain"
-                      />
-                    </a>
-                  )}
-                  {m.attachmentUrl && !isImage && (
-                    
-                      href={m.attachmentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`mb-1.5 flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs ${
-                        isMine ? 'border-white/40' : 'border-border'
-                      }`}
-                    >
-                      <FileText className="h-4 w-4 shrink-0" />
-                      <span className="truncate">View PDF attachment</span>
-                    </a>
-                  )}
-                  {m.body && <span>{m.body}</span>}
+                  {m.attachmentUrl ? <MessageAttachment url={m.attachmentUrl} type={m.attachmentType} /> : null}
+                  {m.body ? <span>{m.body}</span> : null}
                 </div>
               </div>
             );
