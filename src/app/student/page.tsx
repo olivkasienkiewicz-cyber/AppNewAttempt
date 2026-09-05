@@ -224,7 +224,6 @@ export default function StudentBrowsePage() {
 
   const [windowDuration, setWindowDuration] = useState<number>(60);
 
-  // Free-lesson code check for unlocking a 30-min duration option
   const [trialCode, setTrialCode] = useState('');
   const [checkingTrialCode, setCheckingTrialCode] = useState(false);
   const [trialCodeUnlocked, setTrialCodeUnlocked] = useState<string | null>(null);
@@ -477,6 +476,7 @@ export default function StudentBrowsePage() {
         {!isActingAsParent && (
           <>
             <Button variant="ghost" onClick={() => router.push('/student/bookings')} className="h-10">My bookings</Button>
+            <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
             <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
           </>
         )}
