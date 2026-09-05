@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, Plus } from 'lucide-react';
+import { ChevronLeft, Home, Plus } from 'lucide-react';
 import { useAppState } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/brand/page-header';
@@ -24,6 +24,9 @@ export default function MessagesListPage() {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [newMessageOpen, setNewMessageOpen] = useState(false);
+
+  const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
+  const homeHref = currentUser?.role === 'parent' ? '/parent' : '/student';
 
   const fetchConversations = async () => {
     try {
@@ -58,8 +61,11 @@ export default function MessagesListPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
       <PageHeader>
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(homeHref)}>
           <ChevronLeft className="h-4 w-4" /> Back
+        </Button>
+        <Button variant="ghost" size="icon" aria-label="Home" onClick={() => router.push(homeHref)} className="h-9 w-9">
+          <Home className="h-4 w-4" />
         </Button>
       </PageHeader>
 
