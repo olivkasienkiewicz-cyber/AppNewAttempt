@@ -37,6 +37,8 @@ export default function AccountPage() {
     ? Object.values(state.users).find((u) => u.role === 'student' && u.parentId === currentUser.id) ?? null
     : null;
 
+  const backHref = currentUser?.role === 'parent' ? '/parent' : '/student';
+
   const handleInviteParent = async () => {
     const email = parentEmail.trim();
     if (!email) { toast.error("Enter your parent's email."); return; }
@@ -101,7 +103,7 @@ export default function AccountPage() {
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
       <PageHeader>
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+        <Button variant="ghost" size="sm" onClick={() => router.push(backHref)}>
           <ChevronLeft className="h-4 w-4" /> Back
         </Button>
       </PageHeader>
