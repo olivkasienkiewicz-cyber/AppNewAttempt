@@ -1,8 +1,8 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Plus } from 'lucide-react';
 import { useAppState } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/brand/page-header';
@@ -23,6 +23,7 @@ export default function MessagesListPage() {
   const router = useRouter();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [newMessageOpen, setNewMessageOpen] = useState(false);
 
   const fetchConversations = async () => {
     try {
@@ -43,6 +44,17 @@ export default function MessagesListPage() {
     return () => clearInterval(interval);
   }, []);
 
+  const tutors = useMemo(() =>
+    Object.values(state.users)
+      .filter((u) => u.role === 'tutor')
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [state.users]);
+
+  const existingConversationIds = useMemo(
+    () => new Set(conversations.map((c) => c.otherUserId)),
+    [conversations]
+  );
+
   return (
     <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
       <PageHeader>
@@ -51,9 +63,14 @@ export default function MessagesListPage() {
         </Button>
       </PageHeader>
 
-      <div className="mb-8 space-y-1">
-        <p className="eyebrow">Inbox</p>
-        <h1 className="font-display text-4xl text-foreground">Messages</h1>
+      <div className="mb-8 flex items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="eyebrow">Inbox</p>
+          <h1 className="font-display text-4xl text-foreground">Messages</h1>
+        </div>
+        <Button size="sm" onClick={() => setNewMessageOpen(true)} className="mt-1 shrink-0 gap-1.5">
+          <Plus className="h-4 w-4" /> New message
+        </Button>
       </div>
 
       {!loaded ? (
@@ -88,6 +105,43 @@ export default function MessagesListPage() {
             );
           })}
         </ul>
+      )}
+
+      {newMessageOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+            <h2 className="font-display text-2xl text-foreground">Message a tutor</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Choose a tutor to start a conversation.</p>
+            {tutors.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">No tutors have joined yet.</p>
+            ) : (
+              <ul className="mt-4 max-h-72 space-y-1.5 overflow-y-auto">
+                {tutors.map((tutor) => (
+                  <li key={tutor.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewMessageOpen(false);
+                        router.push(`/messages/${tutor.id}`);
+                      }}
+                      className="flex w-full items-center justify-between rounded-md border border-border px-3 py-2 text-left text-sm hover:border-[#16B8A7] hover:text-[#16B8A7]"
+                    >
+                      <span>{tutor.name}</span>
+                      {existingConversationIds.has(tutor.id) && (
+                        <span className="text-xs text-muted-foreground">Existing chat</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-6">
+              <Button variant="ghost" className="w-full" onClick={() => setNewMessageOpen(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
