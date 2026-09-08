@@ -9,13 +9,16 @@ import { toast } from 'sonner';
 import {
   bookSlot, bookAvailabilityWindow, bookSlotsBundle, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
-import { ALL_SUBJECTS, EGZAMIN_OSMOKLASISTY_SUBJECTS, POLSKA_MATURA_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
+import {
+  ALL_SUBJECTS, EGZAMIN_OSMOKLASISTY_SUBJECTS, POLSKA_MATURA_SUBJECTS, subjectDisplayLabel,
+  groupSubjectsByCurriculum,
+} from '@/lib/subjects';
 import { amountForSlot } from '@/lib/payment';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel,
 } from '@/components/ui/select';
 import { BookingConfirmModal } from '@/components/student/booking-confirm-modal';
 import { SubjectRequestModal } from '@/components/student/subject-request-modal';
@@ -116,6 +119,15 @@ export default function StudentBrowsePage() {
       .sort((a, b) => a.localeCompare(b));
     return [...fixed, ...custom];
   }, [tutors]);
+
+  // Groups subjectOptions by curriculum (IB, A-Levels, Polska Matura, etc.)
+  // for the Subjects dropdown, so the list reads as sections instead of
+  // one long flat block. Filtering logic (subjectFilter, filteredTutors)
+  // is untouched — this only changes how the options are displayed.
+  const groupedSubjectOptions = useMemo(
+    () => groupSubjectsByCurriculum(subjectOptions, (s) => s),
+    [subjectOptions]
+  );
 
   const countryOptions = useMemo(() => {
     if (!isUniSupportSelected) return [];
@@ -571,8 +583,13 @@ export default function StudentBrowsePage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t.browse.subjectAll}</SelectItem>
-                    {subjectOptions.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    {groupedSubjectOptions.map(({ curriculum, items }) => (
+                      <SelectGroup key={curriculum}>
+                        <SelectLabel>{curriculum}</SelectLabel>
+                        {items.map((s) => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectGroup>
                     ))}
                   </SelectContent>
                 </Select>
@@ -921,4 +938,3 @@ export default function StudentBrowsePage() {
     </main>
   );
 }
-
