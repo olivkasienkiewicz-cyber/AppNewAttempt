@@ -186,9 +186,9 @@ export type TutorSubject = {
 // startsWith pattern used by hourlyRateForSubject / tutorPayoutRateForSubject
 // so it correctly classifies composite labels like
 // "Polska Matura – Matematyka – poziom rozszerzony". A-Levels are matched
-// by an "A-Level " prefix (currently only "A-Level Physics" exists,
-// likely stored via the "Other" subject's detail field) so any future
-// "A-Level X" entries group here automatically.
+// by an "A-Level " prefix so any future "A-Level X" entries group here
+// automatically. Custom "Other" subjects have no header of their own —
+// they fall through to "IB Diploma" as the final fallback bucket.
 export const CURRICULUM_ORDER = [
   'IB Diploma',
   'IB Entrance Exams',
@@ -197,7 +197,6 @@ export const CURRICULUM_ORDER = [
   'Egzamin ósmoklasisty',
   'Language Classes',
   'Test Prep & Applications',
-  'Other',
 ] as const;
 export type Curriculum = (typeof CURRICULUM_ORDER)[number];
 
@@ -211,7 +210,7 @@ export function curriculumForSubject(subject: string): Curriculum {
   if (subject.startsWith('SAT Preparation') || subject.startsWith('University Application Support')) {
     return 'Test Prep & Applications';
   }
-  return 'Other';
+  return 'IB Diploma';
 }
 
 // Groups any list of tutor subject entries by curriculum, preserving
