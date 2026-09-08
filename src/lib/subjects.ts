@@ -179,3 +179,58 @@ export type TutorSubject = {
   level: string | null;
   detail: string | null;
 };
+
+// --- Curriculum grouping (display-only, no schema change) ---
+// Buckets any subject/detail label into its curriculum for grouped
+// rendering (tutor profile, subject dropdowns, admin lists). Mirrors the
+// startsWith pattern used by hourlyRateForSubject / tutorPayoutRateForSubject
+// so it correctly classifies composite labels like
+// "Polska Matura – Matematyka – poziom rozszerzony". A-Levels are matched
+// by an "A-Level " prefix (currently only "A-Level Physics" exists,
+// likely stored via the "Other" subject's detail field) so any future
+// "A-Level X" entries group here automatically.
+export const CURRICULUM_ORDER = [
+  'IB Diploma',
+  'IB Entrance Exams',
+  'A-Levels',
+  'Polska Matura',
+  'Egzamin ósmoklasisty',
+  'Language Classes',
+  'Test Prep & Applications',
+  'Other',
+] as const;
+export type Curriculum = (typeof CURRICULUM_ORDER)[number];
+
+export function curriculumForSubject(subject: string): Curriculum {
+  if ((IB_SUBJECTS as readonly string[]).includes(subject)) return 'IB Diploma';
+  if (subject.startsWith('Egzaminy wstępne do szkół IB')) return 'IB Entrance Exams';
+  if (subject.startsWith('A-Level ')) return 'A-Levels';
+  if (subject.startsWith('Polska Matura')) return 'Polska Matura';
+  if (subject.startsWith('Egzamin ósmoklasisty')) return 'Egzamin ósmoklasisty';
+  if (subject.startsWith('Language Classes')) return 'Language Classes';
+  if (subject.startsWith('SAT Preparation') || subject.startsWith('University Application Support')) {
+    return 'Test Prep & Applications';
+  }
+  return 'Other';
+}
+
+// Groups any list of tutor subject entries by curriculum, preserving
+// CURRICULUM_ORDER and dropping empty groups. `getLabel` extracts the
+// display string to classify — pass subjectDisplayLabel for TutorSubject
+// entries, or an identity function for plain subject strings.
+export function groupSubjectsByCurriculum<T>(
+  items: T[],
+  getLabel: (item: T) => string
+): { curriculum: Curriculum; items: T[] }[] {
+  const buckets = new Map<Curriculum, T[]>();
+  for (const item of items) {
+    const curriculum = curriculumForSubject(getLabel(item));
+    const bucket = buckets.get(curriculum) ?? [];
+    bucket.push(item);
+    buckets.set(curriculum, bucket);
+  }
+  return CURRICULUM_ORDER.filter((c) => buckets.has(c)).map((curriculum) => ({
+    curriculum,
+    items: buckets.get(curriculum)!,
+  }));
+}
