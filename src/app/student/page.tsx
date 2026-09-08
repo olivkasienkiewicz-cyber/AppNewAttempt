@@ -65,7 +65,13 @@ function splitCountries(detail: string | null): string[] {
   if (!detail) return [];
   return detail.split(',').map((p) => p.trim()).filter(Boolean);
 }
+// Polska Matura entries resolve to their full composite label (e.g.
+// "Polska Matura – Matematyka – poziom rozszerzony") so each subject+level
+// combo appears as its own line item in the main Subjects dropdown,
+// instead of collapsing to a single "Polska Matura" entry with a second
+// dropdown for the specific combo.
 function filterCategoryLabel(ts: { subject: string; detail: string | null }): string {
+  if (ts.subject === MATURA_SUBJECT && ts.detail) return subjectDisplayLabel(ts);
   return ts.subject === 'Other' && ts.detail ? ts.detail : ts.subject;
 }
 
@@ -102,7 +108,6 @@ export default function StudentBrowsePage() {
 
   const isUniSupportSelected = subjectFilter === UNI_SUPPORT_SUBJECT;
   const isEgzaminSelected = subjectFilter === EGZAMIN_SUBJECT;
-  const isMaturaSelected = subjectFilter === MATURA_SUBJECT;
 
   useEffect(() => {
     setLevelFilter('all');
@@ -113,17 +118,33 @@ export default function StudentBrowsePage() {
     for (const tutor of tutors) {
       for (const ts of tutor.subjects) offered.add(filterCategoryLabel(ts));
     }
-    const fixed = ALL_SUBJECTS.filter((s) => offered.has(s));
-    const custom = Array.from(offered)
+
+    // Polska Matura is expanded into individual subject+level combos
+    // (filterCategoryLabel already returns the composite label for these),
+    // ordered by the canonical subject/level list first, with any
+    // stragglers appended alphabetically — same pattern used elsewhere
+    // for egzamin/matura option lists.
+    const maturaPrefix = `${MATURA_SUBJECT} – `;
+    const maturaOffered = Array.from(offered).filter((label) => label.startsWith(maturaPrefix));
+    const maturaCanonical = POLSKA_MATURA_SUBJECTS
+      .map((detail) => `${maturaPrefix}${detail}`)
+      .filter((label) => offered.has(label));
+    const maturaExtra = maturaOffered
+      .filter((label) => !maturaCanonical.includes(label))
+      .sort((a, b) => a.localeCompare(b));
+
+    const nonMatura = Array.from(offered).filter((label) => !label.startsWith(maturaPrefix));
+    const fixed = ALL_SUBJECTS.filter((s) => nonMatura.includes(s));
+    const custom = nonMatura
       .filter((label) => !(ALL_SUBJECTS as readonly string[]).includes(label))
       .sort((a, b) => a.localeCompare(b));
-    return [...fixed, ...custom];
+
+    return [...fixed, ...custom, ...maturaCanonical, ...maturaExtra];
   }, [tutors]);
 
   // Groups subjectOptions by curriculum (IB, A-Levels, Polska Matura, etc.)
   // for the Subjects dropdown, so the list reads as sections instead of
-  // one long flat block. Filtering logic (subjectFilter, filteredTutors)
-  // is untouched — this only changes how the options are displayed.
+  // one long flat block.
   const groupedSubjectOptions = useMemo(
     () => groupSubjectsByCurriculum(subjectOptions, (s) => s),
     [subjectOptions]
@@ -157,26 +178,6 @@ export default function StudentBrowsePage() {
     return [...canonical, ...extra];
   }, [tutors, isEgzaminSelected]);
 
-  // Same pattern as egzaminSubjectOptions above: collects the subject+level
-  // combos (e.g. "Matematyka – poziom rozszerzony") that tutors have
-  // actually published for Polska Matura, ordered by the canonical
-  // POLSKA_MATURA_SUBJECTS list first, with any stragglers appended
-  // alphabetically.
-  const maturaDetailOptions = useMemo(() => {
-    if (!isMaturaSelected) return [];
-    const set = new Set<string>();
-    for (const tutor of tutors) {
-      for (const ts of tutor.subjects) {
-        if (ts.subject === MATURA_SUBJECT && ts.detail) set.add(ts.detail);
-      }
-    }
-    const canonical = POLSKA_MATURA_SUBJECTS.filter((s) => set.has(s));
-    const extra = Array.from(set)
-      .filter((s) => !(POLSKA_MATURA_SUBJECTS as readonly string[]).includes(s))
-      .sort((a, b) => a.localeCompare(b));
-    return [...canonical, ...extra];
-  }, [tutors, isMaturaSelected]);
-
   const filteredTutors = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     return tutors.filter((tutor) => {
@@ -201,13 +202,6 @@ export default function StudentBrowsePage() {
           );
           if (!matches) return false;
         }
-      } else if (isMaturaSelected) {
-        if (levelFilter !== 'all') {
-          const matches = tutor.subjects.some(
-            (ts) => ts.subject === MATURA_SUBJECT && ts.detail === levelFilter
-          );
-          if (!matches) return false;
-        }
       } else if (
         levelFilter !== 'all' &&
         !tutor.subjects.some((ts) => (ts.level ?? '').toUpperCase().includes(levelFilter))
@@ -217,7 +211,7 @@ export default function StudentBrowsePage() {
 
       return true;
     });
-  }, [tutors, searchText, subjectFilter, levelFilter, isUniSupportSelected, isEgzaminSelected, isMaturaSelected]);
+  }, [tutors, searchText, subjectFilter, levelFilter, isUniSupportSelected, isEgzaminSelected]);
 
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   useEffect(() => {
@@ -602,8 +596,6 @@ export default function StudentBrowsePage() {
                         ? 'Country / University'
                         : isEgzaminSelected
                         ? 'Which subject?'
-                        : isMaturaSelected
-                        ? 'Which subject & level?'
                         : t.browse.levelLabel
                     }
                   />
@@ -614,8 +606,6 @@ export default function StudentBrowsePage() {
                       ? 'All countries'
                       : isEgzaminSelected
                       ? 'All subjects'
-                      : isMaturaSelected
-                      ? 'All subjects & levels'
                       : t.browse.levelAll}
                   </SelectItem>
                   {isUniSupportSelected ? (
@@ -624,10 +614,6 @@ export default function StudentBrowsePage() {
                     ))
                   ) : isEgzaminSelected ? (
                     egzaminSubjectOptions.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))
-                  ) : isMaturaSelected ? (
-                    maturaDetailOptions.map((s) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))
                   ) : (
