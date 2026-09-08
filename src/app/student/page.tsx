@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import {
   bookSlot, bookAvailabilityWindow, bookSlotsBundle, useAppState, type Slot, type User, type PaymentInfo,
 } from '@/lib/store';
-import { ALL_SUBJECTS, EGZAMIN_OSMOKLASISTY_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
+import { ALL_SUBJECTS, EGZAMIN_OSMOKLASISTY_SUBJECTS, POLSKA_MATURA_SUBJECTS, subjectDisplayLabel } from '@/lib/subjects';
 import { amountForSlot } from '@/lib/payment';
 import { useLanguage } from '@/context/LanguageContext';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ const WINDOW_STEP_MIN = 30;
 const BASE_DURATION_OPTIONS = [60, 90, 120];
 const UNI_SUPPORT_SUBJECT = 'University Application Support';
 const EGZAMIN_SUBJECT = 'Egzamin ósmoklasisty';
+const MATURA_SUBJECT = 'Polska Matura';
 const PINNED_TUTOR_NAME = 'Olivia Sienkiewicz';
 const MIN_BUNDLE_SIZE = 2;
 
@@ -98,6 +99,7 @@ export default function StudentBrowsePage() {
 
   const isUniSupportSelected = subjectFilter === UNI_SUPPORT_SUBJECT;
   const isEgzaminSelected = subjectFilter === EGZAMIN_SUBJECT;
+  const isMaturaSelected = subjectFilter === MATURA_SUBJECT;
 
   useEffect(() => {
     setLevelFilter('all');
@@ -143,6 +145,26 @@ export default function StudentBrowsePage() {
     return [...canonical, ...extra];
   }, [tutors, isEgzaminSelected]);
 
+  // Same pattern as egzaminSubjectOptions above: collects the subject+level
+  // combos (e.g. "Matematyka – poziom rozszerzony") that tutors have
+  // actually published for Polska Matura, ordered by the canonical
+  // POLSKA_MATURA_SUBJECTS list first, with any stragglers appended
+  // alphabetically.
+  const maturaDetailOptions = useMemo(() => {
+    if (!isMaturaSelected) return [];
+    const set = new Set<string>();
+    for (const tutor of tutors) {
+      for (const ts of tutor.subjects) {
+        if (ts.subject === MATURA_SUBJECT && ts.detail) set.add(ts.detail);
+      }
+    }
+    const canonical = POLSKA_MATURA_SUBJECTS.filter((s) => set.has(s));
+    const extra = Array.from(set)
+      .filter((s) => !(POLSKA_MATURA_SUBJECTS as readonly string[]).includes(s))
+      .sort((a, b) => a.localeCompare(b));
+    return [...canonical, ...extra];
+  }, [tutors, isMaturaSelected]);
+
   const filteredTutors = useMemo(() => {
     const q = searchText.trim().toLowerCase();
     return tutors.filter((tutor) => {
@@ -167,6 +189,13 @@ export default function StudentBrowsePage() {
           );
           if (!matches) return false;
         }
+      } else if (isMaturaSelected) {
+        if (levelFilter !== 'all') {
+          const matches = tutor.subjects.some(
+            (ts) => ts.subject === MATURA_SUBJECT && ts.detail === levelFilter
+          );
+          if (!matches) return false;
+        }
       } else if (
         levelFilter !== 'all' &&
         !tutor.subjects.some((ts) => (ts.level ?? '').toUpperCase().includes(levelFilter))
@@ -176,7 +205,7 @@ export default function StudentBrowsePage() {
 
       return true;
     });
-  }, [tutors, searchText, subjectFilter, levelFilter, isUniSupportSelected, isEgzaminSelected]);
+  }, [tutors, searchText, subjectFilter, levelFilter, isUniSupportSelected, isEgzaminSelected, isMaturaSelected]);
 
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   useEffect(() => {
@@ -556,6 +585,8 @@ export default function StudentBrowsePage() {
                         ? 'Country / University'
                         : isEgzaminSelected
                         ? 'Which subject?'
+                        : isMaturaSelected
+                        ? 'Which subject & level?'
                         : t.browse.levelLabel
                     }
                   />
@@ -566,6 +597,8 @@ export default function StudentBrowsePage() {
                       ? 'All countries'
                       : isEgzaminSelected
                       ? 'All subjects'
+                      : isMaturaSelected
+                      ? 'All subjects & levels'
                       : t.browse.levelAll}
                   </SelectItem>
                   {isUniSupportSelected ? (
@@ -574,6 +607,10 @@ export default function StudentBrowsePage() {
                     ))
                   ) : isEgzaminSelected ? (
                     egzaminSubjectOptions.map((s) => (
+                      <SelectItem key={s} value={s}>{s}</SelectItem>
+                    ))
+                  ) : isMaturaSelected ? (
+                    maturaDetailOptions.map((s) => (
                       <SelectItem key={s} value={s}>{s}</SelectItem>
                     ))
                   ) : (
@@ -884,3 +921,4 @@ export default function StudentBrowsePage() {
     </main>
   );
 }
+
