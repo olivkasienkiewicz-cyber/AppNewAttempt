@@ -144,7 +144,8 @@ export default function StudentBrowsePage() {
 
   // Groups subjectOptions by curriculum (IB, A-Levels, Polska Matura, etc.)
   // for the Subjects dropdown, so the list reads as sections instead of
-  // one long flat block.
+  // one long flat block. Custom "Other" subjects fall under "IB Diploma"
+  // per curriculumForSubject's fallback — see lib/subjects.ts.
   const groupedSubjectOptions = useMemo(
     () => groupSubjectsByCurriculum(subjectOptions, (s) => s),
     [subjectOptions]
@@ -588,42 +589,47 @@ export default function StudentBrowsePage() {
                   </SelectContent>
                 </Select>
               </label>
-              <Select value={levelFilter} onValueChange={(value) => setLevelFilter(value ?? 'all')}>
-                <SelectTrigger className="w-full">
-                  <SelectValue
-                    placeholder={
-                      isUniSupportSelected
-                        ? 'Country / University'
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {isUniSupportSelected ? 'Country' : isEgzaminSelected ? 'Subject' : 'Level'}
+                </span>
+                <Select value={levelFilter} onValueChange={(value) => setLevelFilter(value ?? 'all')}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue
+                      placeholder={
+                        isUniSupportSelected
+                          ? 'Country / University'
+                          : isEgzaminSelected
+                          ? 'Which subject?'
+                          : t.browse.levelLabel
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {isUniSupportSelected
+                        ? 'All countries'
                         : isEgzaminSelected
-                        ? 'Which subject?'
-                        : t.browse.levelLabel
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">
-                    {isUniSupportSelected
-                      ? 'All countries'
-                      : isEgzaminSelected
-                      ? 'All subjects'
-                      : t.browse.levelAll}
-                  </SelectItem>
-                  {isUniSupportSelected ? (
-                    countryOptions.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))
-                  ) : isEgzaminSelected ? (
-                    egzaminSubjectOptions.map((s) => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))
-                  ) : (
-                    <>
-                      <SelectItem value="HL">HL</SelectItem>
-                      <SelectItem value="SL">SL</SelectItem>
-                    </>
-                  )}
-                </SelectContent>
-              </Select>
+                        ? 'All subjects'
+                        : t.browse.levelAll}
+                    </SelectItem>
+                    {isUniSupportSelected ? (
+                      countryOptions.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))
+                    ) : isEgzaminSelected ? (
+                      egzaminSubjectOptions.map((s) => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))
+                    ) : (
+                      <>
+                        <SelectItem value="HL">HL</SelectItem>
+                        <SelectItem value="SL">SL</SelectItem>
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              </label>
             </div>
             <button
               type="button"
