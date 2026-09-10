@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, DragEvent } from 'react';
+import { useEffect, useState, useRef, DragEvent } from 'react';
 import { useRouter } from 'next/navigation';
 
 type TutorProfile = {
@@ -93,6 +93,18 @@ export function AdminTutorsTable({ tutors }: { tutors: TutorProfile[] }) {
   const [rowError, setRowError] = useState<{ id: number; message: string } | null>(null);
   const [uploadingAdd, setUploadingAdd] = useState(false);
   const [uploadingEdit, setUploadingEdit] = useState(false);
+
+  // Local ordering state so rows can be reordered instantly on drag,
+  // ahead of the server round-trip. Resyncs whenever the server-provided
+  // list changes (e.g. after an add/delete triggers router.refresh()).
+  const [orderedTutors, setOrderedTutors] = useState(tutors);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [reorderSaving, setReorderSaving] = useState(false);
+  const [reorderError, setReorderError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOrderedTutors(tutors);
+  }, [tutors]);
 
   async function uploadPhoto(file: File): Promise<string> {
     const body = new FormData();
@@ -205,6 +217,45 @@ export function AdminTutorsTable({ tutors }: { tutors: TutorProfile[] }) {
     }
   }
 
+  function handleRowDragStart(index: number) {
+    setDragIndex(index);
+  }
+
+  function handleRowDragOver(e: DragEvent, index: number) {
+    e.preventDefault();
+    if (dragIndex === null || dragIndex === index) return;
+    setOrderedTutors((current) => {
+      const next = [...current];
+      const [moved] = next.splice(dragIndex, 1);
+      next.splice(index, 0, moved);
+      return next;
+    });
+    setDragIndex(index);
+  }
+
+  async function handleRowDrop() {
+    if (dragIndex === null) return;
+    setDragIndex(null);
+    setReorderSaving(true);
+    setReorderError(null);
+    try {
+      const res = await fetch('/api/admin/tutors/reorder', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderedIds: orderedTutors.map((t) => t.id) }),
+      });
+      if (!res.ok) {
+        throw new Error(await extractErrorMessage(res, 'Failed to save order'));
+      }
+      router.refresh();
+    } catch (err) {
+      setReorderError(err instanceof Error ? err.message : 'Failed to save order');
+      setOrderedTutors(tutors); // roll back to last known-good order
+    } finally {
+      setReorderSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="border rounded p-4 space-y-3">
@@ -252,9 +303,16 @@ export function AdminTutorsTable({ tutors }: { tutors: TutorProfile[] }) {
         </button>
       </div>
 
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">Drag rows by the handle to reorder how tutors appear on the site.</p>
+        {reorderSaving && <span className="text-xs text-muted-foreground">Saving order...</span>}
+      </div>
+      {reorderError && <div className="text-xs text-red-600">{reorderError}</div>}
+
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="text-left border-b">
+            <th className="py-2 w-8"></th>
             <th className="py-2">Photo</th>
             <th className="py-2">Name</th>
             <th className="py-2">Subject</th>
@@ -263,92 +321,113 @@ export function AdminTutorsTable({ tutors }: { tutors: TutorProfile[] }) {
           </tr>
         </thead>
         <tbody>
-          {tutors.map((t) => (
-            <tr key={t.id} className="border-b align-top">
-              {editingId === t.id ? (
-                <>
-                  <td className="py-2 w-40">
-                    <div className="space-y-2">
-                      <DropZone onFile={handleEditDrop} uploading={uploadingEdit} label="Drop photo" />
+          {orderedTutors.map((t, index) => {
+            const isEditing = editingId === t.id;
+            return (
+              <tr
+                key={t.id}
+                onDragOver={(e) => handleRowDragOver(e, index)}
+                onDrop={handleRowDrop}
+                className={`border-b align-top ${dragIndex === index ? 'opacity-50' : ''}`}
+              >
+                <td className="py-2 align-middle">
+                  <span
+                    draggable={!isEditing}
+                    onDragStart={() => handleRowDragStart(index)}
+                    onDragEnd={() => setDragIndex(null)}
+                    className={`inline-block px-1 select-none ${
+                      isEditing ? 'text-gray-300 cursor-not-allowed' : 'text-gray-400 cursor-grab active:cursor-grabbing'
+                    }`}
+                    title={isEditing ? 'Finish editing to reorder' : 'Drag to reorder'}
+                  >
+                    ⠿
+                  </span>
+                </td>
+                {isEditing ? (
+                  <>
+                    <td className="py-2 w-40">
+                      <div className="space-y-2">
+                        <DropZone onFile={handleEditDrop} uploading={uploadingEdit} label="Drop photo" />
+                        <input
+                          value={editForm.photoUrl}
+                          onChange={(e) => setEditForm({ ...editForm, photoUrl: e.target.value })}
+                          className="border rounded px-2 py-1 text-xs w-full"
+                          placeholder="or paste URL"
+                        />
+                        {editForm.photoUrl && (
+                          <img src={editForm.photoUrl} alt="Preview" className="h-12 w-12 object-cover rounded border" />
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2">
                       <input
-                        value={editForm.photoUrl}
-                        onChange={(e) => setEditForm({ ...editForm, photoUrl: e.target.value })}
+                        value={editForm.name}
+                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                         className="border rounded px-2 py-1 text-xs w-full"
-                        placeholder="or paste URL"
                       />
-                      {editForm.photoUrl && (
-                        <img src={editForm.photoUrl} alt="Preview" className="h-12 w-12 object-cover rounded border" />
+                    </td>
+                    <td className="py-2">
+                      <input
+                        value={editForm.subject}
+                        onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
+                        className="border rounded px-2 py-1 text-xs w-full"
+                      />
+                    </td>
+                    <td className="py-2">
+                      <textarea
+                        value={editForm.bio}
+                        onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+                        className="border rounded px-2 py-1 text-xs w-full"
+                        rows={3}
+                      />
+                      {editError && <div className="text-xs text-red-600 mt-1">{editError}</div>}
+                    </td>
+                    <td className="py-2 space-x-2 whitespace-nowrap">
+                      <button
+                        onClick={() => saveEdit(t.id)}
+                        disabled={saving || uploadingEdit}
+                        className="px-3 py-1 rounded bg-black text-white text-xs disabled:opacity-50"
+                      >
+                        {saving ? 'Saving...' : 'Save'}
+                      </button>
+                      <button onClick={cancelEditing} className="px-3 py-1 rounded text-xs">
+                        Cancel
+                      </button>
+                    </td>
+                  </>
+                ) : (
+                  <>
+                    <td className="py-2">
+                      {t.photoUrl ? (
+                        <img src={t.photoUrl} alt={t.name} className="h-10 w-10 object-cover rounded border" />
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
-                    </div>
-                  </td>
-                  <td className="py-2">
-                    <input
-                      value={editForm.name}
-                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                      className="border rounded px-2 py-1 text-xs w-full"
-                    />
-                  </td>
-                  <td className="py-2">
-                    <input
-                      value={editForm.subject}
-                      onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
-                      className="border rounded px-2 py-1 text-xs w-full"
-                    />
-                  </td>
-                  <td className="py-2">
-                    <textarea
-                      value={editForm.bio}
-                      onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
-                      className="border rounded px-2 py-1 text-xs w-full"
-                      rows={3}
-                    />
-                    {editError && <div className="text-xs text-red-600 mt-1">{editError}</div>}
-                  </td>
-                  <td className="py-2 space-x-2 whitespace-nowrap">
-                    <button
-                      onClick={() => saveEdit(t.id)}
-                      disabled={saving || uploadingEdit}
-                      className="px-3 py-1 rounded bg-black text-white text-xs disabled:opacity-50"
-                    >
-                      {saving ? 'Saving...' : 'Save'}
-                    </button>
-                    <button onClick={cancelEditing} className="px-3 py-1 rounded text-xs">
-                      Cancel
-                    </button>
-                  </td>
-                </>
-              ) : (
-                <>
-                  <td className="py-2">
-                    {t.photoUrl ? (
-                      <img src={t.photoUrl} alt={t.name} className="h-10 w-10 object-cover rounded border" />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </td>
-                  <td className="py-2">{t.name}</td>
-                  <td className="py-2">{t.subject}</td>
-                  <td className="py-2 max-w-xs truncate">
-                    {t.bio}
-                    {rowError?.id === t.id && (
-                      <div className="text-xs text-red-600 mt-1 whitespace-normal">{rowError.message}</div>
-                    )}
-                  </td>
-                  <td className="py-2 space-x-2 whitespace-nowrap">
-                    <button onClick={() => startEditing(t)} className="px-3 py-1 rounded border text-xs">
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteTutor(t.id)}
-                      className="px-3 py-1 rounded bg-red-600 text-white text-xs"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </>
-              )}
-            </tr>
-          ))}
+                    </td>
+                    <td className="py-2">{t.name}</td>
+                    <td className="py-2">{t.subject}</td>
+                    <td className="py-2 max-w-xs truncate">
+                      {t.bio}
+                      {rowError?.id === t.id && (
+                        <div className="text-xs text-red-600 mt-1 whitespace-normal">{rowError.message}</div>
+                      )}
+                    </td>
+                    <td className="py-2 space-x-2 whitespace-nowrap">
+                      <button onClick={() => startEditing(t)} className="px-3 py-1 rounded border text-xs">
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteTutor(t.id)}
+                        className="px-3 py-1 rounded bg-red-600 text-white text-xs"
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </>
+                )}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
