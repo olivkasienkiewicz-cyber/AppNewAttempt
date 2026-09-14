@@ -40,8 +40,6 @@ export default function StudentBookingsPage() {
 
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
 
-  // A linked student's parent handles payment — this student never sees
-  // reference/bank details, matching the gate used at booking time.
   const showPaymentDetails = !currentUser?.parentId;
 
   const myBookings = useMemo<Slot[]>(() => {
@@ -155,16 +153,7 @@ export default function StudentBookingsPage() {
                   <p className="text-xs text-muted-foreground">{slot.subject}</p>
                 )}
 
-                {slot.meetingUrl && (
-                  
-                    href={slot.meetingUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-1 inline-block text-xs font-medium text-[#16B8A7] hover:underline"
-                  >
-                    Join class link
-                  </a>
-                )}
+                {slot.meetingUrl && <a href={slot.meetingUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-xs font-medium text-[#16B8A7] hover:underline">Join class link</a>}
 
                 {showPaymentDetails && (
                   <p className="mt-1 text-xs">
