@@ -230,6 +230,16 @@ export default function ParentDashboardPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">{tutor?.name ?? 'Tutor'}</p>
                     {slot.subject && <p className="text-xs text-muted-foreground">{slot.subject}</p>}
+                    {slot.meetingUrl && (
+                      
+                        href={slot.meetingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-block text-xs font-medium text-[#16B8A7] hover:underline"
+                      >
+                        Join class link
+                      </a>
+                    )}
                   </div>
                   {tutor && (
                     <button
