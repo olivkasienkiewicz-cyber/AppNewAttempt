@@ -155,6 +155,17 @@ export default function StudentBookingsPage() {
                   <p className="text-xs text-muted-foreground">{slot.subject}</p>
                 )}
 
+                {slot.meetingUrl && (
+                  
+                    href={slot.meetingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-block text-xs font-medium text-[#16B8A7] hover:underline"
+                  >
+                    Join class link
+                  </a>
+                )}
+
                 {showPaymentDetails && (
                   <p className="mt-1 text-xs">
                     {slot.paymentStatus === 'paid' ? (
