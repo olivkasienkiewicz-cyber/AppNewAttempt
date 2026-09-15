@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
+import { resolveEffectiveUserId } from '@/lib/effective-user';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,8 @@ export async function GET(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
+  const userId = await resolveEffectiveUserId(session.user.id);
+
   const { searchParams } = new URL(req.url);
   const otherId = searchParams.get('with');
   if (!otherId) {
@@ -47,14 +50,14 @@ export async function GET(req: Request) {
   }
   const rows = await sql`
     SELECT * FROM messages
-    WHERE (sender_id = ${session.user.id} AND recipient_id = ${otherId})
-       OR (sender_id = ${otherId} AND recipient_id = ${session.user.id})
+    WHERE (sender_id = ${userId} AND recipient_id = ${otherId})
+       OR (sender_id = ${otherId} AND recipient_id = ${userId})
     ORDER BY created_at ASC
   `;
   await sql`
     UPDATE messages
     SET read = true
-    WHERE recipient_id = ${session.user.id} AND sender_id = ${otherId} AND read = false
+    WHERE recipient_id = ${userId} AND sender_id = ${otherId} AND read = false
   `;
   return NextResponse.json(rows.map((r) => rowToMessage(r as MessageRow)));
 }
@@ -67,6 +70,8 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
+  const userId = await resolveEffectiveUserId(session.user.id);
+
   let parsedBody: unknown;
   try {
     parsedBody = await req.json();
@@ -96,7 +101,7 @@ export async function POST(req: Request) {
   if (attachmentType !== undefined && typeof attachmentType !== 'string') {
     return NextResponse.json({ error: 'invalid_attachment' }, { status: 400 });
   }
-  if (recipientId === session.user.id) {
+  if (recipientId === userId) {
     return NextResponse.json({ error: 'cannot_message_self' }, { status: 400 });
   }
   const recipientRows = await sql`
@@ -106,12 +111,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'recipient_not_found' }, { status: 404 });
   }
   const recipient = recipientRows[0] as { id: string; name: string; email: string | null };
-  const senderRows = await sql`SELECT name FROM users WHERE id = ${session.user.id}`;
+  const senderRows = await sql`SELECT name FROM users WHERE id = ${userId}`;
   const senderName = (senderRows[0]?.name as string | undefined) ?? 'Someone';
 
   const [row] = await sql`
     INSERT INTO messages (sender_id, recipient_id, body, attachment_url, attachment_type)
-    VALUES (${session.user.id}, ${recipientId}, ${trimmedText}, ${hasAttachment ? attachmentUrl : null}, ${hasAttachment ? (attachmentType ?? null) : null})
+    VALUES (${userId}, ${recipientId}, ${trimmedText}, ${hasAttachment ? attachmentUrl : null}, ${hasAttachment ? (attachmentType ?? null) : null})
     RETURNING *
   `;
 
@@ -120,7 +125,7 @@ export async function POST(req: Request) {
     sendEmail({
       to: recipient.email,
       subject: `New message from ${senderName} on Studilly`,
-      html: `<p><strong>${escapeHtml(senderName)}</strong> sent you a message on Studilly:</p><p>${escapeHtml(trimmedText)}</p>${attachmentNote}<p><a href="https://studilly.com/messages/${session.user.id}">Reply on Studilly</a></p>`,
+      html: `<p><strong>${escapeHtml(senderName)}</strong> sent you a message on Studilly:</p><p>${escapeHtml(trimmedText)}</p>${attachmentNote}<p><a href="https://studilly.com/messages/${userId}">Reply on Studilly</a></p>`,
     }).catch((err) => {
       console.error('Failed to send message notification email:', err);
     });
