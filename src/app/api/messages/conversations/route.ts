@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
+import { resolveEffectiveUserId } from '@/lib/effective-user';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,19 +12,7 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
-
-  // If the logged-in account is a parent, messages actually belong to
-  // their linked student — resolve to that id before querying.
-  const [me] = await sql`
-    SELECT id, role FROM users WHERE id = ${session.user.id}
-  `;
-  let userId = session.user.id;
-  if (me?.role === 'parent') {
-    const [linkedStudent] = await sql`
-      SELECT id FROM users WHERE role = 'student' AND parent_id = ${session.user.id}
-    `;
-    if (linkedStudent) userId = linkedStudent.id;
-  }
+  const userId = await resolveEffectiveUserId(session.user.id);
 
   const lastMessages = await sql`
     SELECT DISTINCT ON (other_id) other_id, body, created_at, sender_id
