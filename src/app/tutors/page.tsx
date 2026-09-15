@@ -1,79 +1,309 @@
-import Image from 'next/image';
-import { cookies } from 'next/headers';
-import { sql } from '@/lib/db';
-import { translations, type Locale } from '@/lib/translations';
-import { SiteHeader } from '@/components/marketing/site-header';
-import { SiteFooter } from '@/components/marketing/site-footer';
+'use client';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
+import { Bell, MoreVertical, Link2, Pencil, MessageCircle } from 'lucide-react';
+import { parse, addMinutes, format } from 'date-fns';
+import { toast } from 'sonner';
+import { useAppState, setMeetingUrl, setSlotOutcome, type Slot } from '@/lib/store';
+import { OUTCOME_STATUSES, OUTCOME_LABELS, type OutcomeStatus } from '@/lib/slot-outcome';
+import { useHasHydrated } from '@/hooks/use-has-hydrated';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PageHeader } from '@/components/brand/page-header';
+import { EmptyState } from '@/components/brand/empty-state';
+function endTime(startTime: string, durationMinutes: number): string {
+  const start = parse(startTime, 'HH:mm', new Date());
+  return format(addMinutes(start, durationMinutes), 'HH:mm');
+}
+function dayHeader(isoDate: string): string {
+  return format(parse(isoDate, 'yyyy-MM-dd', new Date()), 'EEE, d MMM');
+}
+function hasSlotEnded(slot: Slot): boolean {
+  const start = parse(slot.startTime, 'HH:mm', new Date(`${slot.date}T00:00:00`));
+  const end = addMinutes(start, slot.durationMinutes);
+  return end < new Date();
+}
+export default function TutorHomePage() {
+  const hydrated = useHasHydrated();
+  const state = useAppState();
+  const router = useRouter();
+  const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
+  const groups = useMemo<Array<[string, Slot[]]>>(() => {
+    if (!currentUser) return [];
+    const mine = Object.values(state.slots)
+      .filter((s) => s.tutorId === currentUser.id)
+      .sort((a, b) =>
+        a.date !== b.date
+          ? a.date < b.date ? -1 : 1
+          : a.startTime < b.startTime ? -1 : a.startTime > b.startTime ? 1 : 0
+      );
+    const map = new Map<string, Slot[]>();
+    for (const s of mine) {
+      if (!map.has(s.date)) map.set(s.date, []);
+      map.get(s.date)!.push(s);
+    }
+    return Array.from(map.entries());
+  }, [state.slots, currentUser]);
 
-export const dynamic = 'force-dynamic';
+  const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
+  const [draftUrl, setDraftUrl] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [savingOutcomeId, setSavingOutcomeId] = useState<string | null>(null);
 
-export default async function TutorsPage() {
-  const cookieStore = await cookies();
-  const localeCookie = cookieStore.get('studilly_locale')?.value;
-  const locale: Locale = localeCookie === 'pl' ? 'pl' : 'en';
-  const t = translations[locale];
+  const startEditing = (slot: Slot) => {
+    setEditingSlotId(slot.id);
+    setDraftUrl(slot.meetingUrl ?? '');
+  };
+  const cancelEditing = () => {
+    setEditingSlotId(null);
+    setDraftUrl('');
+  };
+  const saveMeetingUrl = async (slotId: string) => {
+    setSaving(true);
+    try {
+      await setMeetingUrl(slotId, draftUrl.trim() || null);
+      toast.success('Meeting link saved');
+      cancelEditing();
+    } catch {
+      toast.error("Couldn't save the meeting link — check the URL and try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+  const saveOutcome = async (slotId: string, outcome: OutcomeStatus) => {
+    setSavingOutcomeId(slotId);
+    try {
+      await setSlotOutcome(slotId, outcome);
+      toast.success('Class status saved');
+    } catch {
+      toast.error("Couldn't save the class status — try again.");
+    } finally {
+      setSavingOutcomeId(null);
+    }
+  };
 
-  const rows = await sql`
-    SELECT id, name, subject, bio, photo_url
-    FROM tutor_profiles
-    ORDER BY display_order ASC, id ASC
-  `;
-
-  const tutors = rows.map((row) => ({
-    id: row.id as number,
-    name: row.name as string,
-    subject: (row.subject as string | null) ?? '',
-    bio: row.bio as string,
-    photoUrl: (row.photo_url as string | null) ?? null,
-  }));
-
+  if (!hydrated || !state.dataLoaded) return <TutorHomeSkeleton />;
+  if (!currentUser) {
+    return (
+      <div className="p-6">
+        Not signed in. <Link href="/" className="text-foreground underline underline-offset-4">Go to start</Link>.
+      </div>
+    );
+  }
+  if (currentUser.role !== 'tutor') {
+    return (
+      <div className="p-6">
+        This page is for tutors. <Link href="/" className="text-foreground underline underline-offset-4">Go back</Link>.
+      </div>
+    );
+  }
+  const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
   return (
-    <main className="min-h-screen bg-[#F7F5F0] text-[#12202B]">
-      <SiteHeader />
+    <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+      <PageHeader>
+        <Link href="/notifications" aria-label="Notifications"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Bell className="h-[18px] w-[18px]" />
+        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger aria-label="Account menu"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <MoreVertical className="h-[18px] w-[18px]" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => router.push('/tutor/availability')} className="cursor-pointer">
+              Edit availability
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/tutor/profile')} className="cursor-pointer">
+              Edit profile
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/tutor/materials')} className="cursor-pointer">
+              Materials
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/messages')} className="cursor-pointer">
+              Messages
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSwitchAccount} className="cursor-pointer">
+              Switch account
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </PageHeader>
+      <div className="mb-8 space-y-1">
+        <p className="eyebrow">Your week</p>
+        <h1 className="font-display text-4xl text-foreground">Hi, {currentUser.name}.</h1>
+      </div>
+      {groups.length === 0 ? (
+        <EmptyState>
+          <p className="mb-4">
+            You haven&apos;t published any slots yet. Start by setting your availability for the weeks ahead.
+          </p>
+          <Button onClick={() => router.push('/tutor/availability')}>Edit availability</Button>
+        </EmptyState>
+      ) : (
+        <div className="space-y-8">
+          {groups.map(([date, slots]) => (
+            <section key={date}>
+              <h2 className="eyebrow mb-3">{dayHeader(date)}</h2>
+              <ul className="space-y-1.5">
+                {slots.map((slot) => {
+                  const end = endTime(slot.startTime, slot.durationMinutes);
+                  const booker = slot.bookedByStudentId ? state.users[slot.bookedByStudentId] : null;
+                  const isEditing = editingSlotId === slot.id;
+                  const ended = hasSlotEnded(slot);
+                  const showOutcomeControl = slot.status === 'booked' && ended;
+                  return (
+                    <li key={slot.id} className="rounded-lg border border-border px-4 py-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium tabular-nums text-foreground">
+                          {slot.startTime}–{end}
+                        </span>
+                        {slot.status === 'free' ? (
+                          <StatusPill tone="neutral">Free</StatusPill>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <StatusPill tone="booked">Booked · {booker?.name ?? 'student'}</StatusPill>
+                            <StatusPill tone={slot.paymentStatus === 'paid' ? 'paid' : 'unpaid'}>
+                              {slot.paymentStatus === 'paid' ? 'Paid' : 'Unpaid'}
+                            </StatusPill>
+                            {slot.bookedByStudentId && (
+                              <Link
+                                href={`/messages/${slot.bookedByStudentId}`}
+                                aria-label={`Message ${booker?.name ?? 'student'}`}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                              </Link>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
-      <section className="mx-auto max-w-3xl px-6 py-20">
-        <h1 className="font-[family-name:var(--font-instrument-serif)] text-4xl text-[#0E2A47]">
-          {t.tutors.title}
-        </h1>
-        <p className="mt-4 text-lg text-[#12202B]/80">
-          Every tutor on Studilly has been through the IB themselves.
-        </p>
-      </section>
+                      {isEditing ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <input
+                            type="url"
+                            autoFocus
+                            value={draftUrl}
+                            onChange={(e) => setDraftUrl(e.target.value)}
+                            placeholder="https://meet.google.com/..."
+                            className="h-9 flex-1 rounded-md border border-border bg-background px-2.5 text-sm"
+                          />
+                          <Button size="sm" disabled={saving} onClick={() => void saveMeetingUrl(slot.id)}>
+                            Save
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={cancelEditing}>Cancel</Button>
+                        </div>
+                      ) : (
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          {slot.meetingUrl ? (
+                            <MeetingLinkTag url={slot.meetingUrl} />
+                          ) : (
+                            <span className="text-xs text-muted-foreground">No meeting link yet</span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => startEditing(slot)}
+                            aria-label="Edit meeting link"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
 
-      <section className="bg-white py-16">
-        <div className="mx-auto max-w-4xl px-6 space-y-12">
-          {tutors.length === 0 ? (
-            <p className="text-[#12202B]/60">Tutor profiles are coming soon.</p>
-          ) : (
-            tutors.map((tutor) => (
-              <div key={tutor.id} className="grid gap-6 sm:grid-cols-[120px_1fr] sm:items-start">
-                <div className="h-28 w-28 overflow-hidden rounded-full bg-[#7CD8C5]/30">
-                  {tutor.photoUrl && (
-                    <Image
-                      src={tutor.photoUrl}
-                      alt={tutor.name}
-                      width={112}
-                      height={112}
-                      className="h-full w-full object-cover"
-                    />
-                  )}
-                </div>
-                <div>
-                  <h2 className="font-[family-name:var(--font-instrument-serif)] text-xl text-[#0E2A47]">
-                    {tutor.name}
-                  </h2>
-                  {tutor.subject && (
-                    <p className="mt-1 text-sm font-medium text-[#16B8A7]">{tutor.subject}</p>
-                  )}
-                  <p className="mt-3 text-[#12202B]/80">{tutor.bio}</p>
-                </div>
-              </div>
-            ))
-          )}
+                      {showOutcomeControl && (
+                        <div className="mt-2">
+                          {slot.outcomeStatus ? (
+                            <StatusPill tone="neutral">{OUTCOME_LABELS[slot.outcomeStatus]}</StatusPill>
+                          ) : (
+                            <select
+                              disabled={savingOutcomeId === slot.id}
+                              defaultValue=""
+                              onChange={(e) => void saveOutcome(slot.id, e.target.value as OutcomeStatus)}
+                              className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                            >
+                              <option value="" disabled>
+                                Mark class status
+                              </option>
+                              {OUTCOME_STATUSES.map((status) => (
+                                <option key={status} value={status}>
+                                  {OUTCOME_LABELS[status]}
+                                </option>
+                              ))}
+                            </select>
+                          )}
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
         </div>
-      </section>
-
-      <SiteFooter />
+      )}
+    </main>
+  );
+}
+function MeetingLinkTag({ url }: { url: string }) {
+  const linkProps = { href: url, target: '_blank', rel: 'noopener noreferrer' };
+  return (
+    <a {...linkProps} className="inline-flex items-center gap-1 text-xs text-foreground underline underline-offset-4">
+      <Link2 className="h-3 w-3" /> Meeting link
+    </a>
+  );
+}
+function StatusPill({ tone, children }: { tone: 'neutral' | 'booked' | 'paid' | 'unpaid'; children: React.ReactNode }) {
+  const styles = {
+    booked: 'bg-success-soft text-accent-foreground',
+    paid: 'bg-success-soft text-accent-foreground',
+    unpaid: 'bg-warning-soft text-accent-foreground',
+    neutral: 'border border-border text-muted-foreground',
+  } as const;
+  const dot = {
+    booked: 'bg-success',
+    paid: 'bg-success',
+    unpaid: 'bg-warning',
+    neutral: 'bg-muted-foreground/50',
+  } as const;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${tone === 'neutral' ? '' : styles[tone]} ${tone === 'neutral' ? styles.neutral : ''}`}>
+      <span aria-hidden className={`h-1.5 w-1.5 rounded-full ${dot[tone]}`} />
+      {children}
+    </span>
+  );
+}
+function TutorHomeSkeleton() {
+  return (
+    <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+      <header className="mb-8 flex items-center justify-between border-b border-border pb-4">
+        <Skeleton className="h-6 w-28" />
+        <div className="flex items-center gap-1">
+          <Skeleton className="h-10 w-10 rounded-md" />
+          <Skeleton className="h-10 w-10 rounded-md" />
+        </div>
+      </header>
+      <div className="mb-8 space-y-2">
+        <Skeleton className="h-3 w-20" />
+        <Skeleton className="h-10 w-56" />
+      </div>
+      <div className="space-y-8">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <section key={i}>
+            <Skeleton className="mb-3 h-3 w-28" />
+            <div className="space-y-1.5">
+              <Skeleton className="h-12 w-full rounded-lg" />
+              <Skeleton className="h-12 w-full rounded-lg" />
+            </div>
+          </section>
+        ))}
+      </div>
     </main>
   );
 }
