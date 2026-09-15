@@ -1,45 +1,42 @@
-import { NextResponse } from "next/server";
-import { auth } from "@/auth";
-import { neon } from "@neondatabase/serverless";
-import { isValidOutcomeStatus } from "@/lib/slot-outcome";
+import { NextResponse } from 'next/server';
+import { auth } from '@/auth';
+import { sql } from '@/lib/db';
+import { rowToSlot } from '@/lib/db-mappers';
+import { isValidOutcomeStatus } from '@/lib/slot-outcome';
+import { ADMIN_EMAIL } from '@/lib/payment';
 
-const sql = neon(process.env.DATABASE_URL!);
-
-export async function POST(
+export async function PATCH(
   req: Request,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   const session = await auth();
-
-  if (!session?.user?.id || session.user.role !== "admin") {
-    return NextResponse.json({ error: "Not authorized" }, { status: 403 });
+  if (session?.user?.email !== ADMIN_EMAIL) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const { id: slotId } = await context.params;
 
-  const { outcome_status } = await req.json();
-
-  if (!outcome_status || !isValidOutcomeStatus(outcome_status)) {
-    return NextResponse.json(
-      { error: "Invalid outcome status" },
-      { status: 400 }
-    );
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'invalid_body' }, { status: 400 });
   }
-
-  const rows = await sql`
-    SELECT id FROM slots WHERE id = ${params.id}
-  `;
-
-  if (!rows[0]) {
-    return NextResponse.json({ error: "Slot not found" }, { status: 404 });
+  const { outcomeStatus } = (body ?? {}) as { outcomeStatus?: unknown };
+  if (typeof outcomeStatus !== 'string' || !isValidOutcomeStatus(outcomeStatus)) {
+    return NextResponse.json({ error: 'invalid_outcome_status' }, { status: 400 });
   }
 
   // No ownership or "has it ended" check — admin can override anytime
-  await sql`
+  const updated = await sql`
     UPDATE slots
-    SET outcome_status = ${outcome_status},
+    SET outcome_status = ${outcomeStatus},
         outcome_set_by = 'admin',
         outcome_set_at = now()
-    WHERE id = ${params.id}
+    WHERE id = ${slotId}
+    RETURNING *
   `;
-
-  return NextResponse.json({ success: true });
+  if (updated.length === 0) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404 });
+  }
+  return NextResponse.json(rowToSlot(updated[0]));
 }
