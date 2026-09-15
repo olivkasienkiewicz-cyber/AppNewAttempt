@@ -58,6 +58,9 @@ export function rowToSlot(row: Record<string, unknown>): Slot {
     recurrenceId: (row.recurrence_id as string | null) ?? null,
     createdAt: new Date(row.created_at as string).toISOString(),
     amount: row.amount !== null && row.amount !== undefined ? Number(row.amount) : null,
+    outcomeStatus: (row.outcome_status as Slot['outcomeStatus']) ?? null,
+    outcomeSetBy: (row.outcome_set_by as Slot['outcomeSetBy']) ?? null,
+    outcomeSetAt: row.outcome_set_at ? new Date(row.outcome_set_at as string).toISOString() : null,
   };
 }
 
