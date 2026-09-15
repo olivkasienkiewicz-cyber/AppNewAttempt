@@ -6,7 +6,8 @@ import { signOut } from 'next-auth/react';
 import { Bell, MoreVertical, Link2, Pencil, MessageCircle } from 'lucide-react';
 import { parse, addMinutes, format } from 'date-fns';
 import { toast } from 'sonner';
-import { useAppState, setMeetingUrl, type Slot } from '@/lib/store';
+import { useAppState, setMeetingUrl, setSlotOutcome, type Slot } from '@/lib/store';
+import { OUTCOME_STATUSES, OUTCOME_LABELS, type OutcomeStatus } from '@/lib/slot-outcome';
 import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import {
@@ -47,6 +48,7 @@ export default function TutorHomePage() {
   const [editingSlotId, setEditingSlotId] = useState<string | null>(null);
   const [draftUrl, setDraftUrl] = useState('');
   const [saving, setSaving] = useState(false);
+  const [savingOutcomeId, setSavingOutcomeId] = useState<string | null>(null);
 
   const startEditing = (slot: Slot) => {
     setEditingSlotId(slot.id);
@@ -66,6 +68,17 @@ export default function TutorHomePage() {
       toast.error("Couldn't save the meeting link — check the URL and try again.");
     } finally {
       setSaving(false);
+    }
+  };
+  const saveOutcome = async (slotId: string, outcome: OutcomeStatus) => {
+    setSavingOutcomeId(slotId);
+    try {
+      await setSlotOutcome(slotId, outcome);
+      toast.success('Class status saved');
+    } catch {
+      toast.error("Couldn't save the class status — try again.");
+    } finally {
+      setSavingOutcomeId(null);
     }
   };
 
@@ -137,6 +150,7 @@ export default function TutorHomePage() {
                   const end = endTime(slot.startTime, slot.durationMinutes);
                   const booker = slot.bookedByStudentId ? state.users[slot.bookedByStudentId] : null;
                   const isEditing = editingSlotId === slot.id;
+                  const showOutcomeControl = slot.status === 'booked';
                   return (
                     <li key={slot.id} className="rounded-lg border border-border px-4 py-3">
                       <div className="flex items-center justify-between">
@@ -194,6 +208,30 @@ export default function TutorHomePage() {
                           >
                             <Pencil className="h-3 w-3" />
                           </button>
+                        </div>
+                      )}
+
+                      {showOutcomeControl && (
+                        <div className="mt-2">
+                          {slot.outcomeStatus ? (
+                            <StatusPill tone="neutral">{OUTCOME_LABELS[slot.outcomeStatus]}</StatusPill>
+                          ) : (
+                            <select
+                              disabled={savingOutcomeId === slot.id}
+                              defaultValue=""
+                              onChange={(e) => void saveOutcome(slot.id, e.target.value as OutcomeStatus)}
+                              className="h-8 rounded-md border border-border bg-background px-2 text-xs text-foreground"
+                            >
+                              <option value="" disabled>
+                                Mark class status
+                              </option>
+                              {OUTCOME_STATUSES.map((status) => (
+                                <option key={status} value={status}>
+                                  {OUTCOME_LABELS[status]}
+                                </option>
+                              ))}
+                            </select>
+                          )}
                         </div>
                       )}
                     </li>
