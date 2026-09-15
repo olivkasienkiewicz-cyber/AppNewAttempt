@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { TutorSubject } from '@/lib/subjects';
+import type { OutcomeStatus } from '@/lib/slot-outcome';
 
 export type Role = 'tutor' | 'student' | 'parent';
 export type SlotStatus = 'free' | 'booked';
 export type PaymentStatus = 'unpaid' | 'paid';
+export type OutcomeSetBy = 'tutor' | 'admin';
 
 export type User = {
   id: string;
@@ -32,6 +34,9 @@ export type Slot = {
   recurrenceId: string | null;
   createdAt: string;
   amount: number | null;
+  outcomeStatus: OutcomeStatus | null;
+  outcomeSetBy: OutcomeSetBy | null;
+  outcomeSetAt: string | null;
 };
 
 export type AvailabilityWindow = {
@@ -318,6 +323,16 @@ export async function setMeetingUrl(slotId: string, meetingUrl: string | null): 
   const slot = await api<Slot>(`/api/slots/${slotId}/meeting-link`, {
     method: 'PATCH',
     body: JSON.stringify({ meetingUrl }),
+  });
+  snapshot = { ...snapshot, slots: { ...snapshot.slots, [slot.id]: slot } };
+  emit();
+  return slot;
+}
+
+export async function setSlotOutcome(slotId: string, outcomeStatus: OutcomeStatus): Promise<Slot> {
+  const slot = await api<Slot>(`/api/slots/${slotId}/outcome`, {
+    method: 'PATCH',
+    body: JSON.stringify({ outcomeStatus }),
   });
   snapshot = { ...snapshot, slots: { ...snapshot.slots, [slot.id]: slot } };
   emit();
