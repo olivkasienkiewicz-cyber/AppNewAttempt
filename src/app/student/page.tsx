@@ -466,17 +466,16 @@ export default function StudentBrowsePage() {
           onClick={() => router.push('/notifications')} className="h-10 w-10">
           <Bell className="h-[18px] w-[18px]" />
         </Button>
-        {!isActingAsParent && (
-          <>
-            <Button variant="ghost" onClick={() => router.push('/student/bookings')} className="h-10">My bookings</Button>
-            <Button variant="ghost" onClick={() => router.push('/materials')} className="h-10">Materials</Button>
-            <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
-            <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
-          </>
-        )}
-        {isActingAsParent && (
-          <Button variant="ghost" onClick={() => router.push('/parent')} className="h-10">My bookings</Button>
-        )}
+        <Button
+          variant="ghost"
+          onClick={() => router.push(isActingAsParent ? '/parent' : '/student/bookings')}
+          className="h-10"
+        >
+          My bookings
+        </Button>
+        <Button variant="ghost" onClick={() => router.push('/materials')} className="h-10">Materials</Button>
+        <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
+        <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
         <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
       </PageHeader>
 
