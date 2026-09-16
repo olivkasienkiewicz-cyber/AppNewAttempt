@@ -2,14 +2,15 @@ import { sql } from '@/lib/db';
 
 export type DiscountApplyResult =
   | { ok: true; discountedAmount: number; code: string }
-  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' | 'wrong_duration' };
+  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' | 'wrong_duration' | 'wrong_subject' };
 
 export async function previewDiscountCode(
   rawCode: string,
   originalAmount: number,
   context: 'single' | 'batch',
   studentId?: string,
-  durationMinutes?: number
+  durationMinutes?: number,
+  subject?: string | null
 ): Promise<DiscountApplyResult> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { ok: false, error: 'not_found' };
@@ -26,6 +27,9 @@ export async function previewDiscountCode(
   }
   if (row.required_duration_minutes !== null && durationMinutes !== undefined && Number(row.required_duration_minutes) !== durationMinutes) {
     return { ok: false, error: 'wrong_duration' };
+  }
+  if (row.excluded_subject !== null && subject !== undefined && subject !== null && row.excluded_subject === subject) {
+    return { ok: false, error: 'wrong_subject' };
   }
 
   if (row.single_use) {
@@ -51,7 +55,8 @@ export async function redeemDiscountCode(
   studentId: string,
   originalAmount: number,
   context: 'single' | 'batch',
-  durationMinutes?: number
+  durationMinutes?: number,
+  subject?: string | null
 ): Promise<DiscountApplyResult> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { ok: false, error: 'not_found' };
@@ -68,6 +73,9 @@ export async function redeemDiscountCode(
   }
   if (pre.required_duration_minutes !== null && durationMinutes !== undefined && Number(pre.required_duration_minutes) !== durationMinutes) {
     return { ok: false, error: 'wrong_duration' };
+  }
+  if (pre.excluded_subject !== null && subject !== undefined && subject !== null && pre.excluded_subject === subject) {
+    return { ok: false, error: 'wrong_subject' };
   }
 
   if (pre.single_use) {
