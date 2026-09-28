@@ -28,14 +28,15 @@ export default function LoginPage() {
     const result = await signIn('resend', {
       email: trimmed,
       redirect: false,
-            callbackUrl: '/post-login',
+      callbackUrl: '/post-login',
     });
     setSubmitting(false);
     if (result?.error) {
-      setError("Couldn't send the link — check the address and try again.");
+      setError("Couldn't send the code — check the address and try again.");
       return;
     }
-    router.push('/login/check-email');
+    const normalized = trimmed.normalize('NFKC').toLowerCase();
+    router.push(`/login/check-email?${new URLSearchParams({ email: normalized })}`);
   };
 
   return (
@@ -47,7 +48,7 @@ export default function LoginPage() {
         <div className="space-y-2 text-center">
           <p className="eyebrow">Sign in</p>
           <h1 className="font-display text-4xl text-foreground">What&apos;s your email?</h1>
-          <p className="text-sm text-muted-foreground">We&apos;ll send you a link — no password needed.</p>
+          <p className="text-sm text-muted-foreground">We&apos;ll email you a 6-digit code — no password needed.</p>
         </div>
         <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
           <div className="flex flex-col gap-2">
@@ -65,7 +66,7 @@ export default function LoginPage() {
             {error && <p className="text-sm text-destructive">{error}</p>}
           </div>
           <Button type="submit" size="lg" disabled={submitting} className="h-12 text-base">
-            {submitting ? 'Sending…' : 'Send me a link'}
+            {submitting ? 'Sending…' : 'Send me a code'}
           </Button>
         </form>
       </div>
