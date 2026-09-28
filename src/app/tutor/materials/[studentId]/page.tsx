@@ -3,6 +3,7 @@ import { use, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, FileText, Trash2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { upload } from '@vercel/blob/client';
 import { useAppState } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,29 +50,35 @@ export default function TutorMaterialsForStudentPage({ params }: { params: Promi
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = '';
-    if (!file) return;
+    if (!file || !currentUser) return;
     if (file.size > MAX_FILE_SIZE) {
       toast.error('That file is too large (max 25MB).');
       return;
     }
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const uploadRes = await fetch('/api/materials/upload', { method: 'POST', body: formData });
-      if (!uploadRes.ok) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      let blobUrl: string;
+      try {
+        const blob = await upload(`materials/${currentUser.id}/${Date.now()}-${safeName}`, file, {
+          access: 'public',
+          handleUploadUrl: '/api/materials/upload',
+        });
+        blobUrl = blob.url;
+      } catch (err) {
+        console.error('Material upload failed', err);
         toast.error("Couldn't upload that file — try again.");
         return;
       }
-      const uploaded = await uploadRes.json();
+
       const createRes = await fetch('/api/materials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           studentId,
-          fileUrl: uploaded.url,
-          fileName: uploaded.name,
-          fileType: uploaded.type,
+          fileUrl: blobUrl,
+          fileName: file.name,
+          fileType: file.type || null,
         }),
       });
       if (!createRes.ok) {
