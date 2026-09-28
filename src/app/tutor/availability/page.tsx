@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Plus, Trash2, ArrowLeftRight, X } from 'lucide-react';
 import {
-  addDays, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
+  addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek,
   eachDayOfInterval, format, isSameMonth, isSameDay, isBefore, isAfter, startOfToday,
 } from 'date-fns';
 import { toast } from 'sonner';
@@ -31,6 +31,8 @@ const DURATION_OPTIONS = [60, 90, 120];
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const RECURRING_WEEKS = 12;
 const MAX_STUDENT_RESULTS = 8;
+// How far ahead tutors can add availability: through the end of the month, 6 months out.
+const AVAILABILITY_MONTHS_AHEAD = 6;
 
 const TIME_OPTIONS: string[] = (() => {
   const out: string[] = [];
@@ -105,7 +107,7 @@ export default function AvailabilityPage() {
   const router = useRouter();
 
   const today = useMemo(() => startOfToday(), []);
-  const windowEnd = useMemo(() => addDays(today, 29), [today]);
+  const windowEnd = useMemo(() => endOfMonth(addMonths(today, AVAILABILITY_MONTHS_AHEAD)), [today]);
 
   const [displayMonth, setDisplayMonth] = useState<Date>(today);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
