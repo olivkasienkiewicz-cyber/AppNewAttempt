@@ -26,7 +26,8 @@ export default function MessagesListPage() {
   const [newMessageOpen, setNewMessageOpen] = useState(false);
 
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
-  const homeHref = currentUser?.role === 'parent' ? '/parent' : '/student';
+  const homeHref =
+    currentUser?.role === 'tutor' ? '/tutor' : currentUser?.role === 'parent' ? '/parent' : '/student';
 
   const fetchConversations = async () => {
     try {
