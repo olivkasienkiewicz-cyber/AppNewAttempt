@@ -45,7 +45,8 @@ function ConfirmLinkInner() {
   const handleSignIn = async () => {
     if (!info) return;
     await signIn('resend', { email: info.inviteeEmail, redirect: false, callbackUrl: `/confirm-link?token=${token}` });
-    router.push('/login/check-email');
+    const next = `/confirm-link?token=${token}`;
+    router.push(`/login/check-email?${new URLSearchParams({ email: info.inviteeEmail.trim().toLowerCase(), next })}`);
   };
 
   const handleConfirm = async () => {
