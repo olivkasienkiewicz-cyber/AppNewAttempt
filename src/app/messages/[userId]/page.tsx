@@ -1,5 +1,5 @@
 'use client';
-import { use, useEffect, useMemo, useRef, useState } from 'react';
+import { use, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, Send, Paperclip, X, FileText } from 'lucide-react';
 import { toast } from 'sonner';
@@ -55,15 +55,10 @@ export default function MessageThreadPage({ params }: { params: Promise<{ userId
 
   const otherUser = state.users[otherUserId];
 
-  // Messages are stored under the effective account (the linked student's id,
-  // for a parent acting on their behalf) — not necessarily state.currentUserId.
-  // Resolve the same way the server does, so "mine" bubbles render correctly.
+  // Each account has its own inbox — parents message as themselves, not as
+  // their linked student — so "mine" is simply the logged-in user.
   const currentUser = state.currentUserId ? state.users[state.currentUserId] : null;
-  const linkedStudent = useMemo(() => {
-    if (!currentUser || currentUser.role !== 'parent') return null;
-    return Object.values(state.users).find((u) => u.role === 'student' && u.parentId === currentUser.id) ?? null;
-  }, [state.users, currentUser]);
-  const effectiveUserId = currentUser?.role === 'parent' ? (linkedStudent?.id ?? currentUser.id) : currentUser?.id;
+  const effectiveUserId = currentUser?.id;
 
   const fetchMessages = async () => {
     try {
