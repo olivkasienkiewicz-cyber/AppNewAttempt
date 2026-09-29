@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
-import { resolveEffectiveUserId } from '@/lib/effective-user';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +11,8 @@ export async function GET() {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
-  const userId = await resolveEffectiveUserId(session.user.id);
+  // Each account has its own inbox (parents are not merged with their linked student).
+  const userId = session.user.id;
 
   const lastMessages = await sql`
     SELECT DISTINCT ON (other_id) other_id, body, created_at, sender_id
