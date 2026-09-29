@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { sql } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
-import { resolveEffectiveUserId } from '@/lib/effective-user';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +40,9 @@ export async function GET(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
-  const userId = await resolveEffectiveUserId(session.user.id);
+  // Each account has its own inbox — a parent does NOT read or send as their
+  // linked student, so a message only reaches the person it was addressed to.
+  const userId = session.user.id;
 
   const { searchParams } = new URL(req.url);
   const otherId = searchParams.get('with');
@@ -70,7 +71,9 @@ export async function POST(req: Request) {
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'unauthenticated' }, { status: 401 });
   }
-  const userId = await resolveEffectiveUserId(session.user.id);
+  // Each account has its own inbox — a parent does NOT read or send as their
+  // linked student, so a message only reaches the person it was addressed to.
+  const userId = session.user.id;
 
   let parsedBody: unknown;
   try {
