@@ -21,6 +21,7 @@ export type PayoutClass = {
 export type PayoutRow = {
   tutorId: string;
   tutorName: string;
+  rateNote?: string | null; // custom payout rate, if this tutor has one
   paid: boolean;
   classes: PayoutClass[];
 };
@@ -147,6 +148,11 @@ export function AdminPayoutsTable({ period, rows }: { period: string; rows: Payo
                   >
                     {isOpen ? '▾' : '▸'} {row.tutorName}
                   </button>
+                  {row.rateNote && (
+                    <span className="ml-2 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
+                      {row.rateNote}
+                    </span>
+                  )}
                 </td>
                 <td className="py-2 pr-4">
                   {s.eligibleCount}
