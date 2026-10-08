@@ -2,7 +2,7 @@ import { auth } from '@/auth';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { sql } from '@/lib/db';
-import { ADMIN_EMAIL, payoutForSlot } from '@/lib/payment';
+import { ADMIN_EMAIL, payoutForTutorSlot } from '@/lib/payment';
 import { isPayoutEligible, isValidOutcomeStatus, type OutcomeStatus } from '@/lib/slot-outcome';
 import { AdminPayoutsTable, type PayoutRow, type PayoutClass } from './AdminPayoutsTable';
 
@@ -59,6 +59,9 @@ export default async function AdminPayoutsPage({
       s.payment_status,
       s.outcome_status,
       s.outcome_set_by,
+      s.amount,
+      u.payout_hourly_override_pln,
+      u.payout_full_amount,
       ((s.date + s.start_time::time + make_interval(mins => s.duration_minutes))
         AT TIME ZONE 'Europe/Warsaw') < now() AS has_ended
     FROM slots s
@@ -91,7 +94,16 @@ export default async function AdminPayoutsPage({
       outcome,
       outcomeSetBy: (row.outcome_set_by as string | null) ?? null,
       hasEnded: Boolean(row.has_ended),
-      payout: payoutForSlot(durationMinutes, row.subject as string | null),
+      payout: payoutForTutorSlot(
+        durationMinutes,
+        row.subject as string | null,
+        row.amount != null ? Number(row.amount) : null,
+        {
+          hourlyOverridePln:
+            row.payout_hourly_override_pln != null ? Number(row.payout_hourly_override_pln) : null,
+          fullAmount: Boolean(row.payout_full_amount),
+        }
+      ),
     };
 
     let agg = byTutor.get(tutorId);
@@ -99,6 +111,11 @@ export default async function AdminPayoutsPage({
       agg = {
         tutorId,
         tutorName: row.tutor_name as string,
+        rateNote: row.payout_full_amount
+          ? 'Full amount'
+          : row.payout_hourly_override_pln != null
+            ? `${Number(row.payout_hourly_override_pln)} PLN/h`
+            : null,
         paid: paidMap.get(tutorId) ?? false,
         classes: [],
       };
