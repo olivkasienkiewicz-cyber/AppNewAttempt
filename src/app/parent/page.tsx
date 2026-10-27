@@ -149,6 +149,7 @@ export default function ParentDashboardPage() {
   const header = (
     <PageHeader>
       <Button variant="ghost" onClick={() => router.push('/student')} className="h-10">Book a session</Button>
+      <Button variant="ghost" onClick={() => router.push('/checks')} className="h-10">Work checks</Button>
       <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
       <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
       <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>

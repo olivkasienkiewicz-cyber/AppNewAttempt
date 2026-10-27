@@ -473,6 +473,7 @@ export default function StudentBrowsePage() {
         >
           My bookings
         </Button>
+        <Button variant="ghost" onClick={() => router.push('/checks')} className="h-10">Work checks</Button>
         <Button variant="ghost" onClick={() => router.push('/materials')} className="h-10">Materials</Button>
         <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
         <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>

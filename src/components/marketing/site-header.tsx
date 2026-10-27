@@ -26,6 +26,7 @@ export function SiteHeader() {
     { href: "/about", label: t.nav.about },
     { href: "/tutors", label: t.nav.tutors },
     { href: "/opinions", label: t.nav.opinions },
+    { href: "/written-work-check", label: t.nav.workCheck },
     { href: "/pricing", label: t.nav.pricing },
   ];
 
