@@ -25,6 +25,9 @@ export type Translations = {
     applicationSupportHeading: string;
     applicationSupportSubheading: string;
     applicationServices: { title: string; body: string }[];
+    workCheckHeading: string;
+    workCheckBody: string;
+    workCheckPoints: string[];
     closingHeading: string;
   };
   about: {
@@ -229,6 +232,14 @@ export const translations: Record<"en" | "pl", Translations> = {
           title: "Ongoing application support",
           body: "From deadlines to documents, get support through the entire application process, start to finish.",
         },
+      ],
+      workCheckHeading: "Get your IA, EE or TOK draft checked",
+      workCheckBody:
+        "Send us your draft and a tutor who has been through the IB marks it against the official criteria — with comments on the text and an estimated mark band.",
+      workCheckPoints: [
+        "Comments directly on your draft",
+        "Assessment against each IB criterion",
+        "Feedback within 5 working days",
       ],
       closingHeading: "Your next session is a few taps away.",
     },
@@ -497,6 +508,14 @@ export const translations: Record<"en" | "pl", Translations> = {
           title: "Wsparcie w całym procesie aplikacji",
           body: "Od terminów po dokumenty — wsparcie na każdym etapie procesu aplikacyjnego, od początku do końca.",
         },
+      ],
+      workCheckHeading: "Daj sprawdzić swoje IA, EE lub esej TOK",
+      workCheckBody:
+        "Prześlij nam swoją pracę, a korepetytor, który sam przeszedł przez IB, oceni ją według oficjalnych kryteriów — z komentarzami w tekście i szacowanym przedziałem punktowym.",
+      workCheckPoints: [
+        "Komentarze bezpośrednio w Twojej pracy",
+        "Ocena według każdego kryterium IB",
+        "Informacja zwrotna w ciągu 5 dni roboczych",
       ],
       closingHeading: "Twoja kolejna sesja jest o kilka kliknięć.",
     },

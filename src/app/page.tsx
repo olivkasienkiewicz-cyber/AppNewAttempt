@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { useLanguage } from "@/context/LanguageContext";
+import { WORK_CHECK_CONFIG, WORK_CHECK_PRODUCTS } from "@/lib/work-check";
 
 type TutorPreview = {
   id: number;
@@ -17,7 +18,7 @@ type TutorPreview = {
 };
 
 export default function HomePage() {
-  const { t } = useLanguage();
+  const { t, locale } = useLanguage();
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -200,6 +201,55 @@ export default function HomePage() {
                 <p className="mt-2 text-sm text-[#12202B]/70">{service.body}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Written Work Check */}
+      <section className="bg-[#0E2A47] py-20 text-white">
+        <div className="mx-auto grid max-w-6xl gap-10 px-6 md:grid-cols-[1fr_1fr] md:items-center">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#7CD8C5]">
+              {t.workCheck.eyebrow}
+            </p>
+            <h2 className="mt-3 font-[family-name:var(--font-instrument-serif)] text-3xl md:text-4xl">
+              {t.home.workCheckHeading}
+            </h2>
+            <p className="mt-4 max-w-lg text-white/75">{t.home.workCheckBody}</p>
+            <ul className="mt-6 space-y-2">
+              {t.home.workCheckPoints.map((point) => (
+                <li key={point} className="flex gap-2 text-sm text-white/85">
+                  <span className="text-[#7CD8C5]">✓</span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+            <Link
+              href="/written-work-check"
+              className="mt-8 inline-block rounded-full bg-[#16B8A7] px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#129888]"
+            >
+              {t.workCheck.cta}
+            </Link>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {WORK_CHECK_PRODUCTS.map((p) => {
+              const cfg = WORK_CHECK_CONFIG[p];
+              return (
+                <Link
+                  key={p}
+                  href="/written-work-check"
+                  className="rounded-md border border-white/15 bg-white/5 p-4 transition-colors hover:border-[#7CD8C5]/60 hover:bg-white/10"
+                >
+                  <p className="text-sm text-white/80">{cfg.label[locale]}</p>
+                  <p className="mt-1 font-[family-name:var(--font-instrument-serif)] text-2xl">
+                    {cfg.fromPrice && (
+                      <span className="mr-1 text-base text-white/60">{t.workCheck.from}</span>
+                    )}
+                    {cfg.price} PLN
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </div>
       </section>
