@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { ADMIN_EMAIL, amountForSlot, referenceCodeForSlot } from '@/lib/payment';
 import { isValidOutcomeStatus, type OutcomeStatus } from '@/lib/slot-outcome';
@@ -76,7 +77,10 @@ export default async function AdminBookingsPage() {
 
   return (
     <div className="p-4 sm:p-8 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-1">Bookings</h1>
+      <div className="mb-1 flex items-baseline justify-between gap-4">
+        <h1 className="text-2xl font-semibold">Bookings</h1>
+        <Link href="/admin/work-checks" className="text-sm text-[#16B8A7] hover:underline">Work checks →</Link>
+      </div>
       <p className="mb-6 text-sm text-muted-foreground">
         Students pay for Completed, Student absence and Moved outside policy. Tutor absence and Moved
         per policy are free for the student — if they already paid, the class shows under Refund / credit.

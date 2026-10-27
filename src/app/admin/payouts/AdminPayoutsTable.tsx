@@ -18,20 +18,31 @@ export type PayoutClass = {
   payout: number;
 };
 
+// A Written Work Check delivered this month (see lib/work-check.ts).
+export type PayoutCheck = {
+  id: string;
+  date: string; // delivery date, YYYY-MM-DD
+  label: string;
+  studentName: string;
+  payout: number;
+};
+
 export type PayoutRow = {
   tutorId: string;
   tutorName: string;
   rateNote?: string | null; // custom payout rate, if this tutor has one
   paid: boolean;
   classes: PayoutClass[];
+  checks: PayoutCheck[];
 };
 
-function summarize(classes: PayoutClass[]) {
+function summarize(classes: PayoutClass[], checks: PayoutCheck[]) {
   const eligible = classes.filter((c) => isPayoutEligible(c.outcome));
+  const checksAmount = checks.reduce((s, c) => s + c.payout, 0);
   return {
     eligibleCount: eligible.length,
     eligibleMinutes: eligible.reduce((s, c) => s + c.durationMinutes, 0),
-    amount: Math.round(eligible.reduce((s, c) => s + c.payout, 0) * 100) / 100,
+    amount: Math.round((eligible.reduce((s, c) => s + c.payout, 0) + checksAmount) * 100) / 100,
     needsStatus: classes.filter((c) => c.hasEnded && !c.outcome).length,
     upcoming: classes.filter((c) => !c.hasEnded && !c.outcome).length,
   };
@@ -135,7 +146,7 @@ export function AdminPayoutsTable({ period, rows }: { period: string; rows: Payo
       </thead>
       <tbody>
         {data.map((row) => {
-          const s = summarize(row.classes);
+          const s = summarize(row.classes, row.checks);
           const isOpen = openTutorId === row.tutorId;
           return (
             <Fragment key={row.tutorId}>
@@ -157,6 +168,11 @@ export function AdminPayoutsTable({ period, rows }: { period: string; rows: Payo
                 <td className="py-2 pr-4">
                   {s.eligibleCount}
                   <span className="text-muted-foreground"> / {row.classes.length}</span>
+                  {row.checks.length > 0 && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      + {row.checks.length} check{row.checks.length === 1 ? '' : 's'}
+                    </span>
+                  )}
                 </td>
                 <td className="py-2 pr-4">{(s.eligibleMinutes / 60).toFixed(1)}</td>
                 <td className="py-2 pr-4 font-medium">{s.amount.toFixed(2)} PLN</td>
@@ -248,6 +264,28 @@ export function AdminPayoutsTable({ period, rows }: { period: string; rows: Payo
                         ))}
                       </tbody>
                     </table>
+                    {row.checks.length > 0 && (
+                      <table className="mt-4 w-full text-xs">
+                        <thead>
+                          <tr className="text-left text-muted-foreground">
+                            <th className="py-1 pr-3">Delivered</th>
+                            <th className="py-1 pr-3">Student</th>
+                            <th className="py-1 pr-3">Written Work Check</th>
+                            <th className="py-1 pr-3">Payout</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {row.checks.map((c) => (
+                            <tr key={c.id} className="border-t border-border/40">
+                              <td className="py-1.5 pr-3 whitespace-nowrap">{formatDate(c.date)}</td>
+                              <td className="py-1.5 pr-3">{c.studentName}</td>
+                              <td className="py-1.5 pr-3">{c.label}</td>
+                              <td className="py-1.5 pr-3 whitespace-nowrap">{c.payout.toFixed(2)} PLN</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
                   </td>
                 </tr>
               )}

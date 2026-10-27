@@ -125,7 +125,18 @@ export default function RegulaminPage() {
         <h2 className={h2}>§15 Postanowienia końcowe</h2>
         <p className={p}>Niniejszy Regulamin podlega prawu polskiemu. Wszelkie spory będą rozstrzygane przez sądy powszechne właściwe zgodnie z przepisami prawa polskiego, z zastrzeżeniem bezwzględnie obowiązujących przepisów o ochronie konsumentów, które mogą przysługiwać Konsumentowi w kraju jego zamieszkania na terenie UE. Konsument ma również możliwość skorzystania z pozasądowych sposobów rozpatrywania reklamacji i dochodzenia roszczeń, w tym za pośrednictwem platformy ODR Komisji Europejskiej (ec.europa.eu/consumers/odr) oraz właściwych wojewódzkich inspektoratów Inspekcji Handlowej.</p>
 
-        <h2 className={h2}>§16 Kontakt</h2>
+        <h2 className={h2}>§16 Sprawdzanie prac pisemnych</h2>
+        <ol className={ol}>
+          <li className={li}>Studilly oferuje usługę sprawdzania prac pisemnych („Sprawdzanie prac pisemnych”), polegającą na przekazaniu Uczniowi pisemnej informacji zwrotnej do przesłanej przez niego wersji roboczej pracy (w szczególności eseju TOK, TOK exhibition, Internal Assessment lub Extended Essay).</li>
+          <li className={li}>W ramach jednego zamówienia Korepetytor sprawdza jedną wersję pracy i przekazuje: komentarze naniesione na pracę, podsumowanie odnoszące się do kryteriów oceny IB oraz szacowany przedział punktowy. Szacowany przedział punktowy ma charakter wyłącznie orientacyjny i nie stanowi gwarancji uzyskania określonej oceny.</li>
+          <li className={li}><strong>Korepetytor przekazuje wyłącznie informację zwrotną. Korepetytor nie pisze, nie przepisuje ani nie redaguje pracy Ucznia.</strong> Za treść pracy oraz jej zgodność z zasadami uczciwości akademickiej International Baccalaureate (Academic Integrity Policy) odpowiada wyłącznie Uczeń.</li>
+          <li className={li}>Ceny usługi są podane w cenniku na Platformie. Dla prac oznaczonych ceną „od” ostateczna cena jest potwierdzana przez Studilly przed dokonaniem płatności. Ponowne sprawdzenie tej samej pracy kosztuje 60% ceny.</li>
+          <li className={li}>Płatność za usługę następuje z góry, przelewem bankowym z podaniem kodu referencyjnego. Termin realizacji (5 dni roboczych) liczony jest od potwierdzenia otrzymania płatności przez Studilly.</li>
+          <li className={li}>Uczeń, zamawiając usługę, wyraża zgodę na rozpoczęcie jej świadczenia przed upływem terminu do odstąpienia od umowy i przyjmuje do wiadomości, że po pełnym wykonaniu usługi traci prawo odstąpienia od umowy (art. 38 ust. 1 pkt 1 ustawy o prawach konsumenta). Do czasu przydzielenia pracy Korepetytorowi zamówienie może zostać anulowane, a wpłacona kwota zwrócona w całości.</li>
+          <li className={li}>Przesłane prace są udostępniane wyłącznie Korepetytorowi sprawdzającemu pracę oraz Studilly i wykorzystywane wyłącznie w celu realizacji usługi.</li>
+        </ol>
+
+        <h2 className={h2}>§17 Kontakt</h2>
         <p className={p}>
           Studilly – Olivia Sienkiewicz<br />
           ul. Komfortowa 6, 02-995 Warszawa<br />
