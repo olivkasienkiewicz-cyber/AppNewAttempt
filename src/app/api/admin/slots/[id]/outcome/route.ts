@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 import { rowToSlot } from '@/lib/db-mappers';
 import { isValidOutcomeStatus } from '@/lib/slot-outcome';
 import { ADMIN_EMAIL } from '@/lib/payment';
+import { maybeRewardReferral } from '@/lib/referral';
 
 export async function PATCH(
   req: Request,
@@ -38,5 +39,9 @@ export async function PATCH(
   if (updated.length === 0) {
     return NextResponse.json({ error: 'not_found' }, { status: 404 });
   }
-  return NextResponse.json(rowToSlot(updated[0]));
+  const slot = rowToSlot(updated[0]);
+  if (outcomeStatus === 'completed') {
+    await maybeRewardReferral(slot.bookedByStudentId);
+  }
+  return NextResponse.json(slot);
 }

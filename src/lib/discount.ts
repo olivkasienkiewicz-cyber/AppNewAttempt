@@ -1,8 +1,10 @@
 import { sql } from '@/lib/db';
+import { checkReferralEligibility, recordReferral, undoReferral } from '@/lib/referral';
+import { REFERRAL_MIN_DURATION_MINUTES } from '@/lib/referral-copy';
 
 export type DiscountApplyResult =
   | { ok: true; discountedAmount: number; code: string }
-  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' | 'wrong_duration' | 'wrong_subject' };
+  | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' | 'wrong_duration' | 'wrong_subject' | 'own_code' | 'not_new_student' };
 
 export async function previewDiscountCode(
   rawCode: string,
@@ -30,6 +32,14 @@ export async function previewDiscountCode(
   }
   if (row.excluded_subject !== null && subject !== undefined && subject !== null && row.excluded_subject === subject) {
     return { ok: false, error: 'wrong_subject' };
+  }
+
+  if (row.kind === 'referral') {
+    if (durationMinutes !== undefined && durationMinutes < REFERRAL_MIN_DURATION_MINUTES) {
+      return { ok: false, error: 'wrong_duration' };
+    }
+    const referralError = await checkReferralEligibility(row.owner_user_id as string, studentId);
+    if (referralError) return { ok: false, error: referralError };
   }
 
   if (row.single_use) {
@@ -78,6 +88,18 @@ export async function redeemDiscountCode(
     return { ok: false, error: 'wrong_subject' };
   }
 
+  // Personal referral codes: friends only, first booking only, 60+ min.
+  const isReferral = pre.kind === 'referral';
+  if (isReferral) {
+    if (durationMinutes !== undefined && durationMinutes < REFERRAL_MIN_DURATION_MINUTES) {
+      return { ok: false, error: 'wrong_duration' };
+    }
+    const referralError = await checkReferralEligibility(pre.owner_user_id as string, studentId);
+    if (referralError) return { ok: false, error: referralError };
+    const recorded = await recordReferral(pre.id as string, pre.owner_user_id as string, studentId);
+    if (!recorded) return { ok: false, error: 'not_new_student' };
+  }
+
   if (pre.single_use) {
     const claimed = await sql`
       UPDATE discount_codes
@@ -95,6 +117,7 @@ export async function redeemDiscountCode(
         VALUES (${pre.id}, ${studentId})
       `;
     } catch (err) {
+      if (isReferral) await undoReferral(studentId, pre.id as string);
       if ((err as { code?: string }).code === '23505') {
         return { ok: false, error: 'already_redeemed' };
       }
