@@ -29,3 +29,7 @@ CREATE TABLE IF NOT EXISTS referrals (
 );
 
 CREATE INDEX IF NOT EXISTS referrals_referrer_idx ON referrals (referrer_id);
+
+-- Tracks who has already received the one-off "referral programme" announcement
+-- email sent from /admin/referrals, so a second click never double-sends.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_announcement_sent_at timestamptz;
