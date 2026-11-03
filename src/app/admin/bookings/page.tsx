@@ -80,6 +80,7 @@ export default async function AdminBookingsPage() {
       <div className="mb-1 flex items-baseline justify-between gap-4">
         <h1 className="text-2xl font-semibold">Bookings</h1>
         <Link href="/admin/work-checks" className="text-sm text-[#16B8A7] hover:underline">Work checks →</Link>
+        <Link href="/admin/referrals" className="text-sm text-[#16B8A7] hover:underline">Referrals →</Link>
       </div>
       <p className="mb-6 text-sm text-muted-foreground">
         Students pay for Completed, Student absence and Moved outside policy. Tutor absence and Moved

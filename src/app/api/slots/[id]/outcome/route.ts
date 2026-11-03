@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 import { rowToSlot, rowToUser } from '@/lib/db-mappers';
 import { isValidOutcomeStatus } from '@/lib/slot-outcome';
 import { sendEmail } from '@/lib/email';
+import { maybeRewardReferral } from '@/lib/referral';
 
 const DISCOUNT_VALID_DAYS = 30;
 const DISCOUNT_PERCENT = 10;
@@ -52,6 +53,7 @@ export async function PATCH(
 
   if (outcomeStatus === 'completed' && slot.bookedByStudentId) {
     await maybeSendFirstClassDiscount(slot.bookedByStudentId, slot.subject);
+    await maybeRewardReferral(slot.bookedByStudentId);
   }
 
   return NextResponse.json(slot);

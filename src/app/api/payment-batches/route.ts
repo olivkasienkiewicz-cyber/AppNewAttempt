@@ -62,6 +62,9 @@ export async function POST(req: Request) {
         not_found: 'discount_code_not_found',
         already_redeemed: 'discount_code_already_used',
         wrong_type: 'discount_code_not_valid_for_batches',
+        own_code: 'discount_code_own_referral',
+        not_new_student: 'discount_code_new_students_only',
+        expired: 'discount_code_expired',
       };
       return NextResponse.json({ error: messages[result.error] }, { status: 400 });
     }

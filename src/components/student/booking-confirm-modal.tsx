@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { getPendingReferralCode } from '@/lib/referral-client';
 
 type PreviewSlot = { date: string; startTime: string };
 type Props = {
@@ -23,11 +24,14 @@ type Props = {
 export function BookingConfirmModal({ open, onOpenChange, tutorName, slot, subjectOptions, onConfirm }: Props) {
   const [selectedSubject, setSelectedSubject] = useState<string | undefined>(undefined);
   const [discountCode, setDiscountCode] = useState('');
+  const [prefilledReferral, setPrefilledReferral] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
       setSelectedSubject(subjectOptions.length === 1 ? subjectOptions[0] : undefined);
-      setDiscountCode('');
+      const pending = getPendingReferralCode();
+      setDiscountCode(pending ?? '');
+      setPrefilledReferral(pending);
     }
   }, [open, subjectOptions]);
 
@@ -80,6 +84,9 @@ export function BookingConfirmModal({ open, onOpenChange, tutorName, slot, subje
               placeholder="e.g. FAIR2026"
               className="h-10"
             />
+            {prefilledReferral && discountCode.trim().toUpperCase() === prefilledReferral && (
+              <p className="text-xs text-[#16B8A7]">Referral code filled in — 50 zł off your first session.</p>
+            )}
           </div>
           <DialogFooter className="gap-2 sm:gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

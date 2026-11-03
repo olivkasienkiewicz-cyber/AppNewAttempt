@@ -88,6 +88,9 @@ export default function ParentDashboardPage() {
         discount_code_not_found: "That code isn't valid.",
         discount_code_already_used: 'That code has already been used.',
         discount_code_not_valid_for_batches: "That code can't be used on combined payments.",
+        discount_code_own_referral: "You can't use your own referral code.",
+        discount_code_new_students_only: 'Referral codes are for new students only.',
+        discount_code_expired: 'That code has expired.',
       };
       const errorCode = (err as { body?: { error?: string } })?.body?.error;
       if (errorCode && messages[errorCode]) {
@@ -150,6 +153,7 @@ export default function ParentDashboardPage() {
     <PageHeader>
       <Button variant="ghost" onClick={() => router.push('/student')} className="h-10">Book a session</Button>
       <Button variant="ghost" onClick={() => router.push('/checks')} className="h-10">Work checks</Button>
+      <Button variant="ghost" onClick={() => router.push('/referrals')} className="h-10">Refer a friend</Button>
       <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
       <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
       <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>

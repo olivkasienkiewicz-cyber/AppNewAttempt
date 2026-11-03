@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { ReferralSection } from "@/components/marketing/referral-section";
 import { useLanguage } from "@/context/LanguageContext";
 
 type TutorPreview = {
@@ -203,6 +204,9 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Refer a friend */}
+      <ReferralSection isSignedIn={isSignedIn} />
 
       {/* Closing CTA */}
       <section className="mx-auto max-w-6xl px-6 py-20 text-center">

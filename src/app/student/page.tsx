@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { format } from 'date-fns';
-import { Bell, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Gift } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   bookSlot, bookAvailabilityWindow, bookSlotsBundle, useAppState, type Slot, type User, type PaymentInfo,
@@ -25,6 +25,8 @@ import { SubjectRequestModal } from '@/components/student/subject-request-modal'
 import { SlotRequestModal } from '@/components/SlotRequestModal';
 import { PageHeader } from '@/components/brand/page-header';
 import { EmptyState } from '@/components/brand/empty-state';
+import { getPendingReferralCode, settlePendingReferralCode } from '@/lib/referral-client';
+import { REFERRAL_ERROR_MESSAGES } from '@/lib/referral-copy';
 
 const WINDOW_STEP_MIN = 30;
 const DURATION_OPTIONS = [60, 90, 120];
@@ -337,6 +339,10 @@ export default function StudentBrowsePage() {
   );
 
   const toggleBundleMode = () => {
+    if (!bundleMode && !bundleDiscountCode) {
+      const pending = getPendingReferralCode();
+      if (pending) setBundleDiscountCode(pending);
+    }
     setBundleMode((prev) => !prev);
     setSelectedSlotIds(new Set());
     setBundleDiscountCode('');
@@ -368,6 +374,7 @@ export default function StudentBrowsePage() {
         return;
       }
       toast.success(`${selectedSlots.length} sessions booked`);
+      settlePendingReferralCode(bundleDiscountCode, result.discountError);
       if (result.discountError) {
         const messages: Record<string, string> = {
           not_found: "That discount code wasn't valid, so the bundle was booked at full price.",
@@ -375,6 +382,7 @@ export default function StudentBrowsePage() {
           wrong_type: "That code isn't valid for bundles — booked at full price.",
           wrong_duration: "That code didn't match — booked at full price.",
           expired: 'That discount code has expired — booked at full price.',
+          ...REFERRAL_ERROR_MESSAGES,
         };
         toast.info(messages[result.discountError] ?? 'The discount code could not be applied.');
       } else if (result.payment.discountApplied) {
@@ -405,6 +413,7 @@ export default function StudentBrowsePage() {
           toast.error('That slot was just taken');
         } else {
           toast.success('Booking confirmed');
+          settlePendingReferralCode(discountCode, result.discountError);
           if (discountCode && result.discountError) {
             const messages: Record<string, string> = {
               not_found: "That discount code wasn't valid, so the session was booked at full price.",
@@ -412,6 +421,7 @@ export default function StudentBrowsePage() {
               wrong_type: "That code isn't valid for single sessions — booked at full price.",
               wrong_duration: "That code didn't match this session length — booked at full price.",
               expired: 'That discount code has expired — booked at full price.',
+              ...REFERRAL_ERROR_MESSAGES,
             };
             toast.info(messages[result.discountError] ?? 'The discount code could not be applied.');
           }
@@ -432,6 +442,7 @@ export default function StudentBrowsePage() {
           toast.error('That time was just taken — pick another.');
         } else {
           toast.success('Booking confirmed');
+          settlePendingReferralCode(discountCode, result.discountError);
           if (discountCode && result.discountError) {
             const messages: Record<string, string> = {
               not_found: "That discount code wasn't valid, so the session was booked at full price.",
@@ -439,6 +450,7 @@ export default function StudentBrowsePage() {
               wrong_type: "That code isn't valid for single sessions — booked at full price.",
               wrong_duration: "That code didn't match this session length — booked at full price.",
               expired: 'That discount code has expired — booked at full price.',
+              ...REFERRAL_ERROR_MESSAGES,
             };
             toast.info(messages[result.discountError] ?? 'The discount code could not be applied.');
           }
@@ -474,6 +486,7 @@ export default function StudentBrowsePage() {
           My bookings
         </Button>
         <Button variant="ghost" onClick={() => router.push('/checks')} className="h-10">Work checks</Button>
+        <Button variant="ghost" onClick={() => router.push('/referrals')} className="h-10">Refer a friend</Button>
         <Button variant="ghost" onClick={() => router.push('/materials')} className="h-10">Materials</Button>
         <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
         <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
@@ -499,6 +512,23 @@ export default function StudentBrowsePage() {
           {bundleMode ? 'Cancel selection' : 'Book multiple'}
         </Button>
       </div>
+
+      <button
+        type="button"
+        onClick={() => router.push('/referrals')}
+        className="group mb-8 flex w-full items-center gap-4 rounded-xl bg-[#0E2A47] px-4 py-3.5 text-left text-white transition-colors hover:bg-[#12355A]"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#16B8A7]">
+          <Gift className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">Refer a friend — you both get 50 zł</span>
+          <span className="block text-xs text-white/65">Poleć znajomego — oboje dostajecie 50 zł zniżki</span>
+        </span>
+        <span className="shrink-0 rounded-full border border-white/25 px-3 py-1 text-xs font-semibold transition-colors group-hover:border-[#7CD8C5] group-hover:text-[#7CD8C5]">
+          Your code →
+        </span>
+      </button>
 
       {bundleMode && (
         <div className="mb-6 rounded-lg border border-[#16B8A7]/40 bg-[#16B8A7]/5 px-4 py-3">
