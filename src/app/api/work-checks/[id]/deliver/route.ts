@@ -4,6 +4,7 @@ import { sql } from '@/lib/db';
 import { ADMIN_EMAIL } from '@/lib/payment';
 import { workCheckLabel } from '@/lib/work-check';
 import { feedbackReadyEmail } from '@/lib/work-check-email';
+import { maybeRewardReferral } from '@/lib/referral';
 import { emailOrderParties, getWorkCheck, isOwnUploadUrl, notifyUser } from '@/lib/work-check-server';
 
 export const dynamic = 'force-dynamic';
@@ -55,6 +56,7 @@ export async function POST(req: Request, context: { params: Promise<{ id: string
   }
 
   const delivered = (await getWorkCheck(id))!;
+  await maybeRewardReferral(delivered.studentId);
   const label = workCheckLabel(delivered.product, 'en');
   await Promise.all([
     emailOrderParties(delivered, 'Studilly – informacja zwrotna gotowa / feedback ready', (n) => feedbackReadyEmail(delivered, n)),
