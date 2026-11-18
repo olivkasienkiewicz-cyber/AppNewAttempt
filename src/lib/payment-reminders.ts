@@ -10,7 +10,7 @@ export const REMINDER_DELAY_HOURS = 48;
 // Classes held before this date are never reminded automatically, so
 // switching the feature on doesn't email families about old sessions.
 // Move it earlier if you want the job to chase older unpaid classes too.
-export const REMINDERS_START_DATE = '2026-11-18';
+export const REMINDERS_START_DATE = '2026-11-15';
 
 // Only outcomes where the family actually owes money (same list as the
 // payout-eligible outcomes in slot-outcome.ts).
