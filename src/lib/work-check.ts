@@ -10,6 +10,7 @@ export const WORK_CHECK_PRODUCTS = [
   'tok_exhibition',
   'econ_commentary',
   'econ_portfolio',
+  'maths_ia',
   'ia_other',
   'extended_essay',
 ] as const;
@@ -61,6 +62,14 @@ export const WORK_CHECK_CONFIG: Record<WorkCheckProduct, ProductConfig> = {
     needsSubject: false,
     label: { en: 'Economics IA – full portfolio', pl: 'IA z ekonomii – całe portfolio' },
     note: { en: 'All three commentaries, checked together', pl: 'Wszystkie trzy komentarze razem' },
+  },
+  maths_ia: {
+    price: 400,
+    fromPrice: false,
+    payout: 250,
+    needsSubject: false,
+    label: { en: 'Maths IA', pl: 'IA z matematyki' },
+    note: { en: 'Maths AA and AI; feedback on all criteria', pl: 'Matematyka AA i AI; uwagi do wszystkich kryteriów' },
   },
   ia_other: {
     price: 300,
