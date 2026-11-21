@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { format } from 'date-fns';
-import { Bell, ChevronLeft, ChevronRight, Gift } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, Gift, MessageCircle, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   bookSlot, bookAvailabilityWindow, bookSlotsBundle, useAppState, type Slot, type User, type PaymentInfo,
@@ -24,6 +24,7 @@ import { BookingConfirmModal } from '@/components/student/booking-confirm-modal'
 import { SubjectRequestModal } from '@/components/student/subject-request-modal';
 import { SlotRequestModal } from '@/components/SlotRequestModal';
 import { PageHeader } from '@/components/brand/page-header';
+import { MobileTabBar } from '@/components/brand/mobile-tab-bar';
 import { EmptyState } from '@/components/brand/empty-state';
 import { getPendingReferralCode, settlePendingReferralCode } from '@/lib/referral-client';
 import { REFERRAL_ERROR_MESSAGES } from '@/lib/referral-copy';
@@ -465,6 +466,12 @@ export default function StudentBrowsePage() {
 
   const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
 
+  const levelAllLabel = isUniSupportSelected
+    ? 'All countries'
+    : isEgzaminSelected
+    ? 'All subjects'
+    : t.browse.levelAll;
+
   if (state.dataLoaded && currentUser && currentUser.role !== 'student' && !isActingAsParent) {
     return (
       <div className="p-6">This page is for students.</div>
@@ -472,7 +479,7 @@ export default function StudentBrowsePage() {
   }
 
   return (
-    <main className={`mx-auto w-full max-w-3xl px-4 pt-8 sm:px-6 ${bundleMode && selectedSlotIds.size > 0 ? 'pb-48 sm:pb-24' : 'pb-24'}`}>
+    <main className={`mx-auto w-full max-w-3xl px-4 pt-8 sm:px-6 ${bundleMode && selectedSlotIds.size > 0 ? 'pb-48 sm:pb-24' : 'pb-28 sm:pb-24'}`}>
       <PageHeader>
         <Button variant="ghost" size="icon" aria-label="Notifications"
           onClick={() => router.push('/notifications')} className="h-10 w-10">
@@ -487,81 +494,72 @@ export default function StudentBrowsePage() {
         </Button>
         <Button variant="ghost" onClick={() => router.push('/checks')} className="h-10">Work checks</Button>
         <Button variant="ghost" onClick={() => router.push('/referrals')} className="h-10">Refer a friend</Button>
-        <Button variant="ghost" onClick={() => router.push('/materials')} className="h-10">Materials</Button>
-        <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
+        <Button variant="ghost" onClick={() => router.push('/materials')} className="h-10 max-sm:hidden">Materials</Button>
+        <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10 max-sm:hidden">Messages</Button>
         <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
         <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
       </PageHeader>
 
-      <div className="mb-8 flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="eyebrow">Browse</p>
-          <h1 className="font-display text-3xl text-foreground sm:text-4xl">Available sessions</h1>
-          {isActingAsParent && (
-            <p className="text-sm text-muted-foreground">
-              {linkedStudent ? `Booking for ${linkedStudent.name}` : 'Booking under your own account'}
-            </p>
-          )}
-        </div>
-        <Button
-          variant={bundleMode ? 'default' : 'outline'}
-          size="sm"
-          onClick={toggleBundleMode}
-          className="mt-1 shrink-0"
-        >
-          {bundleMode ? 'Cancel selection' : 'Book multiple'}
-        </Button>
+      <div className="mb-6 space-y-1">
+        <p className="eyebrow">Browse</p>
+        <h1 className="font-display text-3xl text-foreground sm:text-4xl">Available sessions</h1>
+        {isActingAsParent && (
+          <p className="text-sm text-muted-foreground">
+            {linkedStudent ? `Booking for ${linkedStudent.name}` : 'Booking under your own account'}
+          </p>
+        )}
       </div>
 
       <button
         type="button"
         onClick={() => router.push('/referrals')}
-        className="group mb-8 flex w-full items-center gap-3 rounded-xl bg-[#0E2A47] px-4 py-3.5 text-left text-white transition-colors hover:bg-[#12355A]"
+        className="group mb-6 flex w-full items-center gap-3 rounded-xl border border-[#16B8A7]/30 bg-accent px-4 py-3 text-left transition-colors hover:border-[#16B8A7]/60"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#16B8A7]">
-          <Gift className="h-5 w-5" />
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#16B8A7] text-white">
+          <Gift className="h-[18px] w-[18px]" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">Refer a friend — you both get 50 zł</span>
-          <span className="block text-xs text-white/65">Poleć znajomego — oboje dostajecie 50 zł zniżki</span>
+          <span className="block text-sm font-semibold text-foreground">Refer a friend — you both get 50&nbsp;zł</span>
+          <span className="block text-balance text-xs text-muted-foreground">Poleć znajomego — oboje dostajecie 50&nbsp;zł zniżki</span>
         </span>
-        <span className="shrink-0 rounded-full border border-white/25 px-3 py-1 text-xs font-semibold transition-colors group-hover:border-[#7CD8C5] group-hover:text-[#7CD8C5]">
-          <span className="hidden sm:inline">Your code </span>→
-        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-accent-foreground transition-transform group-hover:translate-x-0.5" />
       </button>
-
-      {bundleMode && (
-        <div className="mb-6 rounded-lg border border-[#16B8A7]/40 bg-[#16B8A7]/5 px-4 py-3">
-          <p className="text-sm text-foreground">
-            Select two or more sessions below, from any tutor, then pay for them together.
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {selectedSlotIds.size} session{selectedSlotIds.size === 1 ? '' : 's'} selected
-            {selectedSlots.length > 0 ? ` · ${selectedTotal} PLN` : ''}
-          </p>
-        </div>
-      )}
 
       {!state.dataLoaded ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : tutors.length === 0 ? (
         <EmptyState>No tutors have joined yet. Switch to a tutor account to publish slots.</EmptyState>
       ) : (
-        <>
-          <div className="mb-6 space-y-3">
-            <input
-              type="text"
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder={t.browse.searchPlaceholder}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-2 sm:text-sm"
-            />
+        <div className="space-y-6">
+          <section
+            aria-labelledby="find-tutor-heading"
+            className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5"
+          >
+            <h2 id="find-tutor-heading" className="text-sm font-semibold text-foreground">Find a tutor</h2>
+
+            <div className="relative">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                placeholder={t.browse.searchPlaceholder}
+                aria-label={t.browse.searchPlaceholder}
+                className="w-full rounded-lg border border-border bg-background py-2.5 pr-3 pl-9 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-2 sm:text-sm"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">Subjects</span>
                 <Select value={subjectFilter} onValueChange={(value) => setSubjectFilter(value ?? 'all')}>
                   <SelectTrigger className="w-full data-[size=default]:h-11 sm:data-[size=default]:h-8">
-                    <SelectValue placeholder={t.browse.subjectLabel} />
+                    <SelectValue placeholder={t.browse.subjectLabel}>
+                      {(value: string) => (value === 'all' ? t.browse.subjectAll : value)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">{t.browse.subjectAll}</SelectItem>
@@ -590,16 +588,12 @@ export default function StudentBrowsePage() {
                           ? 'Which subject?'
                           : t.browse.levelLabel
                       }
-                    />
+                    >
+                      {(value: string) => (value === 'all' ? levelAllLabel : value)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">
-                      {isUniSupportSelected
-                        ? 'All countries'
-                        : isEgzaminSelected
-                        ? 'All subjects'
-                        : t.browse.levelAll}
-                    </SelectItem>
+                    <SelectItem value="all">{levelAllLabel}</SelectItem>
                     {isUniSupportSelected ? (
                       countryOptions.map((c) => (
                         <SelectItem key={c} value={c}>{c}</SelectItem>
@@ -618,40 +612,26 @@ export default function StudentBrowsePage() {
                 </Select>
               </label>
             </div>
-            <button
-              type="button"
-              onClick={() => setRequestModalOpen(true)}
-              className="py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:py-0"
-            >
-              {t.browse.requestSubjectLink}
-            </button>
-          </div>
 
-          {filteredTutors.length === 0 ? (
-            <EmptyState>
-              <p>{t.browse.noMatchesTitle}</p>
-              <p className="mt-1 text-sm">{t.browse.noMatchesBody}</p>
-              <button
-                type="button"
-                onClick={() => setRequestModalOpen(true)}
-                className="mt-2 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-3 sm:py-0"
-              >
-                {t.subjectRequest.emptyStatePrompt}
-              </button>
-            </EmptyState>
-          ) : (
-            <>
-              <div className="mb-8">
-                {filteredTutors.length === 1 ? (
-                  <p className="text-sm">
-                    <span className="text-muted-foreground">Tutor · </span>
-                    <span className="font-medium">{filteredTutors[0].name}</span>
-                  </p>
-                ) : (
+            {filteredTutors.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+                <p className="text-sm font-medium text-foreground">{t.browse.noMatchesTitle}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{t.browse.noMatchesBody}</p>
+                <button
+                  type="button"
+                  onClick={() => setRequestModalOpen(true)}
+                  className="mt-2 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-3 sm:py-0"
+                >
+                  {t.subjectRequest.emptyStatePrompt}
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredTutors.length > 1 && (
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-muted-foreground">Tutor</span>
                     <Select
-                      value={selectedTutorId ?? undefined}
+                      value={selectedTutorId ?? null}
                       onValueChange={(value) => setSelectedTutorId(value ?? null)}
                     >
                       <SelectTrigger className="w-full data-[size=default]:h-11 sm:data-[size=default]:h-8">
@@ -667,31 +647,89 @@ export default function StudentBrowsePage() {
                     </Select>
                   </label>
                 )}
-                {selectedTutor && selectedTutor.subjects.length > 0 && (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {selectedTutor.subjects
-                      .map((ts) => {
-                        const label = subjectDisplayLabel(ts);
-                        const extra = ts.subject === UNI_SUPPORT_SUBJECT && ts.detail ? ` (${ts.detail})` : '';
-                        return label + (ts.level ? ` (${ts.level})` : '') + extra;
-                      })
-                      .join(' · ')}
-                  </p>
-                )}
                 {selectedTutor && (
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/messages/${selectedTutor.id}`)}
-                    className="mt-1 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-2 sm:py-0"
-                  >
-                    Message {selectedTutor.name}
-                  </button>
+                  <div className="flex items-start justify-between gap-3 rounded-lg bg-muted/40 p-3">
+                    <div className="min-w-0 space-y-2">
+                      {filteredTutors.length === 1 && (
+                        <p className="text-sm font-semibold text-foreground">{selectedTutor.name}</p>
+                      )}
+                      {selectedTutor.subjects.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedTutor.subjects.map((ts, idx) => {
+                            const label = subjectDisplayLabel(ts);
+                            const extra = ts.subject === UNI_SUPPORT_SUBJECT && ts.detail ? ` (${ts.detail})` : '';
+                            return (
+                              <span
+                                key={`${label}-${idx}`}
+                                className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-foreground"
+                              >
+                                {label + (ts.level ? ` (${ts.level})` : '') + extra}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Message ${selectedTutor.name}`}
+                      onClick={() => router.push(`/messages/${selectedTutor.id}`)}
+                      className="h-10 shrink-0 gap-1.5 bg-background sm:h-8"
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      Message
+                    </Button>
+                  </div>
                 )}
               </div>
+            )}
+
+            <div className="border-t border-border pt-3">
+              <button
+                type="button"
+                onClick={() => setRequestModalOpen(true)}
+                className="py-1 text-sm font-medium text-[#16B8A7] hover:underline sm:py-0"
+              >
+                {t.browse.requestSubjectLink}
+              </button>
+            </div>
+          </section>
+
+          {filteredTutors.length > 0 && (
+            <section
+              aria-labelledby="choose-time-heading"
+              className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h2 id="choose-time-heading" className="text-sm font-semibold text-foreground">Choose a time</h2>
+                <Button
+                  variant={bundleMode ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={toggleBundleMode}
+                  className="h-10 shrink-0 sm:h-8"
+                >
+                  {bundleMode ? 'Cancel selection' : 'Book multiple'}
+                </Button>
+              </div>
+
+              {bundleMode && (
+                <div className="rounded-lg border border-[#16B8A7]/40 bg-[#16B8A7]/5 px-4 py-3">
+                  <p className="text-sm text-foreground">
+                    Select two or more sessions below, from any tutor, then pay for them together.
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {selectedSlotIds.size} session{selectedSlotIds.size === 1 ? '' : 's'} selected
+                    {selectedSlots.length > 0 ? ` · ${selectedTotal} PLN` : ''}
+                  </p>
+                </div>
+              )}
 
               {daysWithAvailability.length === 0 ? (
-                <EmptyState>
-                  <p>No open slots for {selectedTutor?.name ?? 'this tutor'} right now.</p>
+                <div className="rounded-lg border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No open slots for {selectedTutor?.name ?? 'this tutor'} right now.
+                  </p>
                   <button
                     type="button"
                     onClick={() => setSlotRequestModalOpen(true)}
@@ -699,10 +737,10 @@ export default function StudentBrowsePage() {
                   >
                     Request a time
                   </button>
-                </EmptyState>
+                </div>
               ) : (
-                <div>
-                  <div className="mb-4 flex items-center justify-between">
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between rounded-lg bg-muted/40 p-1">
                     <Button
                       variant="ghost"
                       size="icon"
@@ -734,7 +772,7 @@ export default function StudentBrowsePage() {
                   </div>
 
                   {slotsOnDay.length > 0 && (
-                    <div className="mb-6">
+                    <div>
                       <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                         Fixed sessions
                       </p>
@@ -792,7 +830,7 @@ export default function StudentBrowsePage() {
                                 if (!selectedDay) return;
                                 setPendingBooking({ kind: 'window', date: selectedDay, startTime, duration: windowDuration });
                               }}
-                              className="rounded-lg border border-border px-3 py-3 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors sm:py-2"
+                              className="rounded-lg border border-border px-3 py-3 text-sm font-medium text-foreground transition-colors hover:border-[#16B8A7] hover:text-[#16B8A7] sm:py-2"
                             >
                               {startTime}
                             </button>
@@ -803,19 +841,21 @@ export default function StudentBrowsePage() {
                   )}
 
                   {!bundleMode && (
-                    <button
-                      type="button"
-                      onClick={() => setSlotRequestModalOpen(true)}
-                      className="mt-2 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-4 sm:py-0"
-                    >
-                      Don't see a time that works? Request one
-                    </button>
+                    <div className="border-t border-border pt-3">
+                      <button
+                        type="button"
+                        onClick={() => setSlotRequestModalOpen(true)}
+                        className="py-1 text-sm font-medium text-[#16B8A7] hover:underline sm:py-0"
+                      >
+                        Don&apos;t see a time that works? Request one
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
-            </>
+            </section>
           )}
-        </>
+        </div>
       )}
 
       <BookingConfirmModal
@@ -886,6 +926,8 @@ export default function StudentBrowsePage() {
           </div>
         </div>
       )}
+
+      {!(bundleMode && selectedSlotIds.size > 0) && <MobileTabBar />}
 
       <SubjectRequestModal open={requestModalOpen} onOpenChange={setRequestModalOpen} />
       {selectedTutorId && (
