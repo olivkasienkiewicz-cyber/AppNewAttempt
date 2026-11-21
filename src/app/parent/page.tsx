@@ -9,6 +9,7 @@ import { useHasHydrated } from '@/hooks/use-has-hydrated';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/brand/page-header';
+import { MobileTabBar } from '@/components/brand/mobile-tab-bar';
 import { EmptyState } from '@/components/brand/empty-state';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS } from '@/lib/payment';
 
@@ -154,7 +155,7 @@ export default function ParentDashboardPage() {
       <Button variant="ghost" onClick={() => router.push('/student')} className="h-10">Book a session</Button>
       <Button variant="ghost" onClick={() => router.push('/checks')} className="h-10">Work checks</Button>
       <Button variant="ghost" onClick={() => router.push('/referrals')} className="h-10">Refer a friend</Button>
-      <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10">Messages</Button>
+      <Button variant="ghost" onClick={() => router.push('/messages')} className="h-10 max-sm:hidden">Messages</Button>
       <Button variant="ghost" onClick={() => router.push('/account')} className="h-10">Account</Button>
       <Button variant="ghost" onClick={handleSwitchAccount} className="h-10">Switch account</Button>
     </PageHeader>
@@ -173,7 +174,7 @@ export default function ParentDashboardPage() {
   }
 
   return (
-    <main className="mx-auto max-w-2xl px-4 pt-8 pb-12 sm:px-6">
+    <main className="mx-auto max-w-2xl px-4 pt-8 pb-28 sm:px-6 sm:pb-12">
       {header}
 
       <div className="mb-8 space-y-1">
@@ -364,6 +365,8 @@ export default function ParentDashboardPage() {
           </div>
         </div>
       )}
+
+      <MobileTabBar />
     </main>
   );
 }
