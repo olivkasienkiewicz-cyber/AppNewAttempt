@@ -472,7 +472,7 @@ export default function StudentBrowsePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 pt-8 pb-24 sm:px-6">
+    <main className={`mx-auto w-full max-w-3xl px-4 pt-8 sm:px-6 ${bundleMode && selectedSlotIds.size > 0 ? 'pb-48 sm:pb-24' : 'pb-24'}`}>
       <PageHeader>
         <Button variant="ghost" size="icon" aria-label="Notifications"
           onClick={() => router.push('/notifications')} className="h-10 w-10">
@@ -496,7 +496,7 @@ export default function StudentBrowsePage() {
       <div className="mb-8 flex items-start justify-between gap-3">
         <div className="space-y-1">
           <p className="eyebrow">Browse</p>
-          <h1 className="font-display text-4xl text-foreground">Available sessions</h1>
+          <h1 className="font-display text-3xl text-foreground sm:text-4xl">Available sessions</h1>
           {isActingAsParent && (
             <p className="text-sm text-muted-foreground">
               {linkedStudent ? `Booking for ${linkedStudent.name}` : 'Booking under your own account'}
@@ -516,7 +516,7 @@ export default function StudentBrowsePage() {
       <button
         type="button"
         onClick={() => router.push('/referrals')}
-        className="group mb-8 flex w-full items-center gap-4 rounded-xl bg-[#0E2A47] px-4 py-3.5 text-left text-white transition-colors hover:bg-[#12355A]"
+        className="group mb-8 flex w-full items-center gap-3 rounded-xl bg-[#0E2A47] px-4 py-3.5 text-left text-white transition-colors hover:bg-[#12355A]"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#16B8A7]">
           <Gift className="h-5 w-5" />
@@ -526,7 +526,7 @@ export default function StudentBrowsePage() {
           <span className="block text-xs text-white/65">Poleć znajomego — oboje dostajecie 50 zł zniżki</span>
         </span>
         <span className="shrink-0 rounded-full border border-white/25 px-3 py-1 text-xs font-semibold transition-colors group-hover:border-[#7CD8C5] group-hover:text-[#7CD8C5]">
-          Your code →
+          <span className="hidden sm:inline">Your code </span>→
         </span>
       </button>
 
@@ -554,13 +554,13 @@ export default function StudentBrowsePage() {
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
               placeholder={t.browse.searchPlaceholder}
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2.5 text-base focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:py-2 sm:text-sm"
             />
             <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <span className="mb-1 block text-xs font-medium text-muted-foreground">Subjects</span>
                 <Select value={subjectFilter} onValueChange={(value) => setSubjectFilter(value ?? 'all')}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full data-[size=default]:h-11 sm:data-[size=default]:h-8">
                     <SelectValue placeholder={t.browse.subjectLabel} />
                   </SelectTrigger>
                   <SelectContent>
@@ -581,7 +581,7 @@ export default function StudentBrowsePage() {
                   {isUniSupportSelected ? 'Country' : isEgzaminSelected ? 'Subject' : 'Level'}
                 </span>
                 <Select value={levelFilter} onValueChange={(value) => setLevelFilter(value ?? 'all')}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full data-[size=default]:h-11 sm:data-[size=default]:h-8">
                     <SelectValue
                       placeholder={
                         isUniSupportSelected
@@ -621,7 +621,7 @@ export default function StudentBrowsePage() {
             <button
               type="button"
               onClick={() => setRequestModalOpen(true)}
-              className="text-sm font-medium text-[#16B8A7] hover:underline"
+              className="py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:py-0"
             >
               {t.browse.requestSubjectLink}
             </button>
@@ -634,7 +634,7 @@ export default function StudentBrowsePage() {
               <button
                 type="button"
                 onClick={() => setRequestModalOpen(true)}
-                className="mt-3 text-sm font-medium text-[#16B8A7] hover:underline"
+                className="mt-2 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-3 sm:py-0"
               >
                 {t.subjectRequest.emptyStatePrompt}
               </button>
@@ -654,7 +654,7 @@ export default function StudentBrowsePage() {
                       value={selectedTutorId ?? undefined}
                       onValueChange={(value) => setSelectedTutorId(value ?? null)}
                     >
-                      <SelectTrigger className="w-full">
+                      <SelectTrigger className="w-full data-[size=default]:h-11 sm:data-[size=default]:h-8">
                         <SelectValue placeholder="Select a tutor">
                           {(value: string) => filteredTutors.find((t) => t.id === value)?.name ?? 'Select a tutor'}
                         </SelectValue>
@@ -682,7 +682,7 @@ export default function StudentBrowsePage() {
                   <button
                     type="button"
                     onClick={() => router.push(`/messages/${selectedTutor.id}`)}
-                    className="mt-2 text-sm font-medium text-[#16B8A7] hover:underline"
+                    className="mt-1 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-2 sm:py-0"
                   >
                     Message {selectedTutor.name}
                   </button>
@@ -695,7 +695,7 @@ export default function StudentBrowsePage() {
                   <button
                     type="button"
                     onClick={() => setSlotRequestModalOpen(true)}
-                    className="mt-3 text-sm font-medium text-[#16B8A7] hover:underline"
+                    className="mt-2 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-3 sm:py-0"
                   >
                     Request a time
                   </button>
@@ -709,7 +709,7 @@ export default function StudentBrowsePage() {
                       aria-label="Previous day"
                       disabled={!canGoPrev}
                       onClick={goPrev}
-                      className="h-9 w-9"
+                      className="h-11 w-11 sm:h-9 sm:w-9"
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
@@ -727,7 +727,7 @@ export default function StudentBrowsePage() {
                       aria-label="Next day"
                       disabled={!canGoNext}
                       onClick={goNext}
-                      className="h-9 w-9"
+                      className="h-11 w-11 sm:h-9 sm:w-9"
                     >
                       <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -746,7 +746,7 @@ export default function StudentBrowsePage() {
                               key={slot.id}
                               type="button"
                               onClick={() => bundleMode ? toggleSlotSelection(slot.id) : setPendingBooking({ kind: 'fixed', slot })}
-                              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                              className={`rounded-lg border px-3 py-3 text-sm font-medium transition-colors sm:py-2 ${
                                 isSelected
                                   ? 'border-[#16B8A7] bg-[#16B8A7]/10 text-[#16B8A7]'
                                   : 'border-border text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7]'
@@ -768,7 +768,7 @@ export default function StudentBrowsePage() {
 
                       <div className="mb-3 w-36">
                         <Select value={String(windowDuration)} onValueChange={(v) => setWindowDuration(Number(v))}>
-                          <SelectTrigger className="w-full" aria-label="Session length">
+                          <SelectTrigger className="w-full data-[size=default]:h-11 sm:data-[size=default]:h-8" aria-label="Session length">
                             <SelectValue>{(value: string) => `${value} min`}</SelectValue>
                           </SelectTrigger>
                           <SelectContent>
@@ -792,7 +792,7 @@ export default function StudentBrowsePage() {
                                 if (!selectedDay) return;
                                 setPendingBooking({ kind: 'window', date: selectedDay, startTime, duration: windowDuration });
                               }}
-                              className="rounded-lg border border-border px-3 py-2 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors"
+                              className="rounded-lg border border-border px-3 py-3 text-sm font-medium text-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] transition-colors sm:py-2"
                             >
                               {startTime}
                             </button>
@@ -806,7 +806,7 @@ export default function StudentBrowsePage() {
                     <button
                       type="button"
                       onClick={() => setSlotRequestModalOpen(true)}
-                      className="mt-4 text-sm font-medium text-[#16B8A7] hover:underline"
+                      className="mt-2 py-2 text-sm font-medium text-[#16B8A7] hover:underline sm:mt-4 sm:py-0"
                     >
                       Don't see a time that works? Request one
                     </button>
@@ -828,8 +828,8 @@ export default function StudentBrowsePage() {
       />
 
       {paymentInfo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-xl bg-background p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/40 px-4 py-6">
+          <div className="m-auto w-full max-w-sm rounded-xl bg-background p-6 shadow-xl">
             <h2 className="font-display text-2xl text-foreground">Booking confirmed</h2>
             {showPaymentDetails ? (
               <>
@@ -839,7 +839,7 @@ export default function StudentBrowsePage() {
                 {paymentInfo.discountApplied && (
                   <p className="mt-2 text-sm text-[#16B8A7]">Discount code {paymentInfo.discountCode} applied!</p>
                 )}
-                <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
+                <div className="mt-4 space-y-2 break-words rounded-lg border border-border p-4 text-sm">
                   <p><span className="text-muted-foreground">Reference: </span>{paymentInfo.referenceCode}</p>
                   <p><span className="text-muted-foreground">Amount: </span>{paymentInfo.amount} {paymentInfo.currency}</p>
                   <p><span className="text-muted-foreground">Account holder: </span>{paymentInfo.bankDetails.accountHolder}</p>
@@ -858,7 +858,7 @@ export default function StudentBrowsePage() {
       )}
 
       {bundleMode && selectedSlotIds.size > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background px-4 py-3 shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-2px_12px_rgba(0,0,0,0.06)]">
           <div className="mx-auto flex max-w-3xl flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <div className="flex-1">
               <p className="text-sm font-medium text-foreground">
@@ -874,12 +874,12 @@ export default function StudentBrowsePage() {
               value={bundleDiscountCode}
               onChange={(e) => { setBundleDiscountCode(e.target.value); if (bundleDiscountError) setBundleDiscountError(null); }}
               placeholder="Discount code (optional)"
-              className="h-9 w-full text-sm sm:w-48"
+              className="h-11 w-full text-base sm:h-9 sm:w-48 sm:text-sm"
             />
             <Button
               disabled={selectedSlotIds.size < MIN_BUNDLE_SIZE || bundleSubmitting}
               onClick={() => void handleBundleCheckout()}
-              className="sm:shrink-0"
+              className="h-11 sm:h-8 sm:shrink-0"
             >
               {bundleSubmitting ? 'Booking…' : 'Book & Pay'}
             </Button>
