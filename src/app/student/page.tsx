@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { format } from 'date-fns';
-import { Bell, ChevronLeft, ChevronRight, Gift, MessageCircle, Search } from 'lucide-react';
+import { Bell, Check, ChevronLeft, ChevronRight, Gift, MessageCircle, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   bookSlot, bookAvailabilityWindow, bookSlotsBundle, useAppState, type Slot, type User, type PaymentInfo,
@@ -36,6 +36,7 @@ const EGZAMIN_SUBJECT = 'Egzamin ósmoklasisty';
 const MATURA_SUBJECT = 'Polska Matura';
 const PINNED_TUTOR_NAME = 'Olivia Sienkiewicz';
 const MIN_BUNDLE_SIZE = 2;
+const TUTOR_PREVIEW_COUNT = 5;
 
 type PendingBooking =
   | { kind: 'fixed'; slot: Slot }
@@ -67,6 +68,17 @@ function minutesToTime(mins: number): string {
 function splitCountries(detail: string | null): string[] {
   if (!detail) return [];
   return detail.split(',').map((p) => p.trim()).filter(Boolean);
+}
+function formatTutorSubject(ts: User['subjects'][number]): string {
+  const label = subjectDisplayLabel(ts);
+  const extra = ts.subject === UNI_SUPPORT_SUBJECT && ts.detail ? ` (${ts.detail})` : '';
+  return label + (ts.level ? ` (${ts.level})` : '') + extra;
+}
+function initialsOf(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] : '';
+  return (parts[0][0] + last).toUpperCase();
 }
 // Polska Matura entries resolve to their full composite label (e.g.
 // "Polska Matura – Matematyka – poziom rozszerzony") so each subject+level
@@ -108,6 +120,7 @@ export default function StudentBrowsePage() {
   const [levelFilter, setLevelFilter] = useState('all');
   const [requestModalOpen, setRequestModalOpen] = useState(false);
   const [slotRequestModalOpen, setSlotRequestModalOpen] = useState(false);
+  const [showAllTutors, setShowAllTutors] = useState(false);
 
   const isUniSupportSelected = subjectFilter === UNI_SUPPORT_SUBJECT;
   const isEgzaminSelected = subjectFilter === EGZAMIN_SUBJECT;
@@ -466,6 +479,18 @@ export default function StudentBrowsePage() {
 
   const handleSwitchAccount = () => { void signOut({ callbackUrl: '/' }); };
 
+  // Matching tutors are shown as a list (not a dropdown) so it is obvious
+  // that there is more than one to choose from. Long lists are collapsed to
+  // the first few, always keeping the selected tutor visible.
+  const visibleTutors = filteredTutors.filter(
+    (tutor, idx) => showAllTutors || idx < TUTOR_PREVIEW_COUNT || tutor.id === selectedTutorId
+  );
+  // With a subject filter on, show the subject(s) that matched; otherwise all of them.
+  const tutorSubjectLabels = (tutor: User): string[] =>
+    tutor.subjects
+      .filter((ts) => subjectFilter === 'all' || filterCategoryLabel(ts) === subjectFilter)
+      .map(formatTutorSubject);
+
   const levelAllLabel = isUniSupportSelected
     ? 'All countries'
     : isEgzaminSelected
@@ -626,61 +651,73 @@ export default function StudentBrowsePage() {
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredTutors.length > 1 && (
-                  <label className="block">
-                    <span className="mb-1 block text-xs font-medium text-muted-foreground">Tutor</span>
-                    <Select
-                      value={selectedTutorId ?? null}
-                      onValueChange={(value) => setSelectedTutorId(value ?? null)}
-                    >
-                      <SelectTrigger className="w-full data-[size=default]:h-11 sm:data-[size=default]:h-8">
-                        <SelectValue placeholder="Select a tutor">
-                          {(value: string) => filteredTutors.find((t) => t.id === value)?.name ?? 'Select a tutor'}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {filteredTutors.map((tutor) => (
-                          <SelectItem key={tutor.id} value={tutor.id}>{tutor.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </label>
-                )}
-                {selectedTutor && (
-                  <div className="flex items-start justify-between gap-3 rounded-lg bg-muted/40 p-3">
-                    <div className="min-w-0 space-y-2">
-                      {filteredTutors.length === 1 && (
-                        <p className="text-sm font-semibold text-foreground">{selectedTutor.name}</p>
-                      )}
-                      {selectedTutor.subjects.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {selectedTutor.subjects.map((ts, idx) => {
-                            const label = subjectDisplayLabel(ts);
-                            const extra = ts.subject === UNI_SUPPORT_SUBJECT && ts.detail ? ` (${ts.detail})` : '';
-                            return (
-                              <span
-                                key={`${label}-${idx}`}
-                                className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-foreground"
-                              >
-                                {label + (ts.level ? ` (${ts.level})` : '') + extra}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  {filteredTutors.length === 1 ? '1 tutor' : `${filteredTutors.length} tutors`}
+                  {subjectFilter !== 'all' ? ' for this subject' : ' available'}
+                </p>
+                <div role="radiogroup" aria-label="Tutors" className="space-y-2">
+                  {visibleTutors.map((tutor) => {
+                    const isSelected = tutor.id === selectedTutorId;
+                    const labels = tutorSubjectLabels(tutor);
+                    return (
+                      <div
+                        key={tutor.id}
+                        className={`rounded-xl border transition-colors ${
+                          isSelected
+                            ? 'border-[#16B8A7] bg-[#16B8A7]/5'
+                            : 'border-border hover:border-[#16B8A7]/50'
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          onClick={() => setSelectedTutorId(tutor.id)}
+                          className="flex w-full items-center gap-3 p-3 text-left"
+                        >
+                          <span
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${
+                              isSelected ? 'bg-[#16B8A7] text-white' : 'bg-muted text-foreground'
+                            }`}
+                          >
+                            {initialsOf(tutor.name)}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-foreground">{tutor.name}</span>
+                            {labels.length > 0 && (
+                              <span className={`block text-xs text-muted-foreground ${isSelected ? '' : 'truncate'}`}>
+                                {labels.join(' · ')}
                               </span>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label={`Message ${selectedTutor.name}`}
-                      onClick={() => router.push(`/messages/${selectedTutor.id}`)}
-                      className="h-10 shrink-0 gap-1.5 bg-background sm:h-8"
-                    >
-                      <MessageCircle className="h-3.5 w-3.5" />
-                      Message
-                    </Button>
-                  </div>
+                            )}
+                          </span>
+                          {isSelected && <Check aria-hidden className="h-5 w-5 shrink-0 text-[#16B8A7]" />}
+                        </button>
+                        {isSelected && (
+                          <div className="px-3 pb-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => router.push(`/messages/${tutor.id}`)}
+                              className="h-10 w-full gap-1.5 bg-background sm:h-8 sm:w-auto"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                              Message {tutor.name}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {filteredTutors.length > TUTOR_PREVIEW_COUNT && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllTutors((prev) => !prev)}
+                    className="w-full rounded-lg py-2.5 text-sm font-medium text-[#16B8A7] hover:underline sm:py-2"
+                  >
+                    {showAllTutors ? 'Show fewer tutors' : `Show all ${filteredTutors.length} tutors`}
+                  </button>
                 )}
               </div>
             )}
@@ -702,7 +739,12 @@ export default function StudentBrowsePage() {
               className="space-y-4 rounded-xl border border-border bg-card p-4 sm:p-5"
             >
               <div className="flex items-center justify-between gap-3">
-                <h2 id="choose-time-heading" className="text-sm font-semibold text-foreground">Choose a time</h2>
+                <div className="min-w-0">
+                  <h2 id="choose-time-heading" className="text-sm font-semibold text-foreground">Choose a time</h2>
+                  {selectedTutor && (
+                    <p className="truncate text-xs text-muted-foreground">with {selectedTutor.name}</p>
+                  )}
+                </div>
                 <Button
                   variant={bundleMode ? 'default' : 'outline'}
                   size="sm"
