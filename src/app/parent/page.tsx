@@ -178,7 +178,7 @@ export default function ParentDashboardPage() {
 
       <div className="mb-8 space-y-1">
         <p className="eyebrow">{bookingOwnerName}&apos;s sessions</p>
-        <h1 className="font-display text-4xl text-foreground">Bookings &amp; payments</h1>
+        <h1 className="font-display text-3xl text-foreground sm:text-4xl">Bookings &amp; payments</h1>
         {!linkedStudent && (
           <p className="text-sm text-muted-foreground">
             No student is linked to your account yet — sessions booked under your own account show up here.
@@ -196,6 +196,7 @@ export default function ParentDashboardPage() {
                 <Button
                   key={size}
                   size="sm"
+                  className="h-11 sm:h-7"
                   variant={enough ? 'default' : 'outline'}
                   disabled={!enough || creatingBatchSize !== null}
                   onClick={() => void handlePayBatch(size)}
@@ -211,7 +212,7 @@ export default function ParentDashboardPage() {
               value={discountCode}
               onChange={(e) => { setDiscountCode(e.target.value); if (discountError) setDiscountError(null); }}
               placeholder="Discount code (optional)"
-              className="h-9 flex-1 text-sm"
+              className="h-11 flex-1 text-base sm:h-9 sm:text-sm"
             />
           </div>
           {discountError && <p className="mt-1 text-xs text-destructive">{discountError}</p>}
@@ -242,7 +243,7 @@ export default function ParentDashboardPage() {
                       type="button"
                       onClick={() => router.push(`/messages/${tutor.id}`)}
                       aria-label={`Message ${tutor.name}`}
-                      className="shrink-0 rounded-full border border-border p-2 text-muted-foreground hover:border-[#16B8A7] hover:text-[#16B8A7]"
+                      className="shrink-0 rounded-full border border-border p-3 text-muted-foreground hover:border-[#16B8A7] hover:text-[#16B8A7] sm:p-2"
                     >
                       <MessageCircle className="h-4 w-4" />
                     </button>
@@ -263,7 +264,7 @@ export default function ParentDashboardPage() {
                     <button
                       type="button"
                       onClick={() => setRevealedId(isRevealed ? null : slot.id)}
-                      className="text-xs font-medium text-[#16B8A7] hover:underline"
+                      className="py-2 text-xs font-medium text-[#16B8A7] hover:underline sm:py-0"
                     >
                       {isRevealed ? 'Hide payment details' : 'View payment details'}
                     </button>
@@ -280,8 +281,8 @@ export default function ParentDashboardPage() {
                 )}
 
                 <div className="mt-3 flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => setMoveTarget(slot)}>Move</Button>
-                  <Button variant="ghost" size="sm" onClick={() => setCancelTarget(slot)}>Cancel</Button>
+                  <Button variant="outline" size="sm" className="h-11 sm:h-7" onClick={() => setMoveTarget(slot)}>Move</Button>
+                  <Button variant="ghost" size="sm" className="h-11 sm:h-7" onClick={() => setCancelTarget(slot)}>Cancel</Button>
                 </div>
               </li>
             );
@@ -290,8 +291,8 @@ export default function ParentDashboardPage() {
       )}
 
       {batchPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-sm rounded-xl bg-background p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/40 px-4 py-6">
+          <div className="m-auto w-full max-w-sm rounded-xl bg-background p-6 shadow-xl">
             <h2 className="font-display text-2xl text-foreground">Payment created</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Please transfer payment using the details below to cover the selected sessions.
@@ -299,7 +300,7 @@ export default function ParentDashboardPage() {
             {batchPayment.discountApplied && (
               <p className="mt-2 text-sm text-[#16B8A7]">Discount code {batchPayment.discountCode} applied!</p>
             )}
-            <div className="mt-4 space-y-2 rounded-lg border border-border p-4 text-sm">
+            <div className="mt-4 space-y-2 break-words rounded-lg border border-border p-4 text-sm">
               <p><span className="text-muted-foreground">Reference: </span>{batchPayment.referenceCode}</p>
               <p><span className="text-muted-foreground">Amount: </span>{batchPayment.amount} {batchPayment.currency}</p>
               <p><span className="text-muted-foreground">Account holder: </span>{BANK_DETAILS.accountHolder}</p>
@@ -312,8 +313,8 @@ export default function ParentDashboardPage() {
       )}
 
       {cancelTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/40 px-4 py-6" role="dialog" aria-modal="true">
+          <div className="m-auto w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
             <h2 className="font-display text-2xl text-foreground">Cancel this session?</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {formatDayLabel(cancelTarget.date)} at {cancelTarget.startTime} with {state.users[cancelTarget.tutorId]?.name ?? 'the tutor'}.
@@ -331,8 +332,8 @@ export default function ParentDashboardPage() {
       )}
 
       {moveTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true">
-          <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
+        <div className="fixed inset-0 z-50 flex overflow-y-auto bg-black/40 px-4 py-6" role="dialog" aria-modal="true">
+          <div className="m-auto w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-lg">
             <h2 className="font-display text-2xl text-foreground">Move this session</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               Currently {formatDayLabel(moveTarget.date)} at {moveTarget.startTime} with {state.users[moveTarget.tutorId]?.name ?? 'the tutor'}.
@@ -347,7 +348,7 @@ export default function ParentDashboardPage() {
                       type="button"
                       disabled={busy}
                       onClick={() => void confirmMove(opt.id)}
-                      className="w-full rounded-md border border-border px-3 py-2 text-left text-sm hover:border-[#16B8A7] hover:text-[#16B8A7]"
+                      className="w-full rounded-md border border-border px-3 py-3 text-left text-sm hover:border-[#16B8A7] hover:text-[#16B8A7] sm:py-2"
                     >
                       {formatDayLabel(opt.date)} · {opt.startTime}
                     </button>
@@ -356,7 +357,7 @@ export default function ParentDashboardPage() {
               </ul>
             )}
             <div className="mt-6">
-              <Button variant="ghost" className="w-full" onClick={() => setMoveTarget(null)} disabled={busy}>
+              <Button variant="ghost" className="h-11 w-full sm:h-8" onClick={() => setMoveTarget(null)} disabled={busy}>
                 Close
               </Button>
             </div>
