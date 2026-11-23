@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { sql } from '@/lib/db';
 import { ADMIN_EMAIL, amountForSlot, referenceCodeForSlot } from '@/lib/payment';
 import { isValidOutcomeStatus, type OutcomeStatus } from '@/lib/slot-outcome';
+import { rowToUser } from '@/lib/db-mappers';
 import { AdminBookingsTable, type AdminBooking } from './AdminBookingsTable';
+import { AdminBookForm, type BookFormTutor, type BookFormStudent } from './AdminBookForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +46,26 @@ export default async function AdminBookingsPage() {
     WHERE s.status = 'booked'
     ORDER BY s.date DESC, s.start_time DESC
   `;
+
+  const [tutorRows, studentRows] = await Promise.all([
+    sql`SELECT * FROM users WHERE role = 'tutor' ORDER BY name`,
+    sql`SELECT * FROM users WHERE role = 'student' ORDER BY name`,
+  ]);
+  const bookTutors: BookFormTutor[] = tutorRows.map((row) => {
+    const tutor = rowToUser(row);
+    const subjects = tutor.subjects.map((ts) => {
+      if (ts.subject === 'Other' && ts.detail) return ts.detail;
+      if (ts.subject === 'Egzamin ósmoklasisty' && ts.detail) return `Egzamin ósmoklasisty – ${ts.detail}`;
+      if (ts.subject === 'Polska Matura' && ts.detail) return `Polska Matura – ${ts.detail}`;
+      return ts.subject;
+    });
+    return { id: tutor.id, name: tutor.name, subjects };
+  });
+  const bookStudents: BookFormStudent[] = studentRows.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    email: (row.email as string | null) ?? '',
+  }));
 
   const bookings: AdminBooking[] = rows.map((row) => {
     const durationMinutes = Number(row.duration_minutes);
@@ -86,6 +108,7 @@ export default async function AdminBookingsPage() {
         Students pay for Completed, Student absence and Moved outside policy. Tutor absence and Moved
         per policy are free for the student — if they already paid, the class shows under Refund / credit.
       </p>
+      <AdminBookForm tutors={bookTutors} students={bookStudents} />
       <AdminBookingsTable bookings={bookings} />
     </div>
   );
