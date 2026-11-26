@@ -1,10 +1,41 @@
 import { sql } from '@/lib/db';
-import { checkReferralEligibility, recordReferral, undoReferral } from '@/lib/referral';
+import { checkReferralEligibility, recordReferral, undoReferral, isNewStudent } from '@/lib/referral';
 import { REFERRAL_MIN_DURATION_MINUTES } from '@/lib/referral-copy';
+import { IB_SUBJECTS } from '@/lib/subjects';
 
 export type DiscountApplyResult =
   | { ok: true; discountedAmount: number; code: string }
   | { ok: false; error: 'not_found' | 'already_redeemed' | 'wrong_type' | 'expired' | 'wrong_duration' | 'wrong_subject' | 'own_code' | 'not_new_student' };
+
+// Groups a code can be limited to via discount_codes.allowed_subject_groups.
+export type DiscountSubjectGroup = 'ib' | 'sat' | 'university_applications';
+
+export function discountSubjectGroup(subject: string | null | undefined): DiscountSubjectGroup | null {
+  if (!subject) return null;
+  if ((IB_SUBJECTS as readonly string[]).includes(subject)) return 'ib';
+  if (subject.startsWith('SAT Preparation')) return 'sat';
+  if (subject.startsWith('University Application Support')) return 'university_applications';
+  return null;
+}
+
+// Optional per-code limits (see db/migrations/2026-11-discount-code-limits.sql).
+// A code limited to certain subjects never applies when the subject is
+// unknown (e.g. work checks), so it can't slip through.
+async function checkCodeLimits(
+  row: Record<string, unknown>,
+  studentId: string | undefined,
+  subject: string | null | undefined
+): Promise<'wrong_subject' | 'not_new_student' | null> {
+  const groups = row.allowed_subject_groups as string[] | null | undefined;
+  if (groups !== null && groups !== undefined) {
+    const group = discountSubjectGroup(subject);
+    if (!group || !groups.includes(group)) return 'wrong_subject';
+  }
+  if (row.new_students_only === true && studentId && !(await isNewStudent(studentId))) {
+    return 'not_new_student';
+  }
+  return null;
+}
 
 export async function previewDiscountCode(
   rawCode: string,
@@ -33,6 +64,8 @@ export async function previewDiscountCode(
   if (row.excluded_subject !== null && subject !== undefined && subject !== null && row.excluded_subject === subject) {
     return { ok: false, error: 'wrong_subject' };
   }
+  const limitError = await checkCodeLimits(row, studentId, subject);
+  if (limitError) return { ok: false, error: limitError };
 
   if (row.kind === 'referral') {
     if (durationMinutes !== undefined && durationMinutes < REFERRAL_MIN_DURATION_MINUTES) {
@@ -87,6 +120,8 @@ export async function redeemDiscountCode(
   if (pre.excluded_subject !== null && subject !== undefined && subject !== null && pre.excluded_subject === subject) {
     return { ok: false, error: 'wrong_subject' };
   }
+  const limitError = await checkCodeLimits(pre, studentId, subject);
+  if (limitError) return { ok: false, error: limitError };
 
   // Personal referral codes: friends only, first booking only, 60+ min.
   const isReferral = pre.kind === 'referral';

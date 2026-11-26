@@ -64,6 +64,7 @@ export async function POST(req: Request) {
         wrong_type: 'discount_code_not_valid_for_batches',
         own_code: 'discount_code_own_referral',
         not_new_student: 'discount_code_new_students_only',
+        wrong_subject: 'discount_code_wrong_subject',
         expired: 'discount_code_expired',
       };
       return NextResponse.json({ error: messages[result.error] }, { status: 400 });

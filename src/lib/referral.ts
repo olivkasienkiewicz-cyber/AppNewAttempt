@@ -90,7 +90,7 @@ async function isSameFamily(ownerId: string, studentId: string): Promise<boolean
 // "New" = never had a paid or held class, never had a paid work check,
 // and was never referred before. The booking currently being created is
 // still unpaid, so it doesn't count against them.
-async function isNewStudent(studentId: string): Promise<boolean> {
+export async function isNewStudent(studentId: string): Promise<boolean> {
   const [row] = await sql`
     SELECT
       (SELECT COUNT(*) FROM slots

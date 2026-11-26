@@ -130,7 +130,7 @@ export async function POST(req: Request) {
   let discountError: string | null = null;
 
   if (typeof discountCode === 'string' && discountCode.trim().length > 0) {
-    const result = await redeemDiscountCode(discountCode, studentId, fullAmount, 'single', durationMinutes);
+    const result = await redeemDiscountCode(discountCode, studentId, fullAmount, 'single', durationMinutes, slot.subject);
     if (result.ok) {
       finalAmount = result.discountedAmount;
       appliedCode = result.code;

@@ -149,8 +149,10 @@ export const referralCopy = {
   },
 };
 
-// Discount error messages for referral-specific failures (used in toasts).
+// Discount error messages for referral codes and codes with subject /
+// new-student limits (used in toasts).
 export const REFERRAL_ERROR_MESSAGES: Record<string, string> = {
   own_code: "You can't use your own referral code — booked at full price.",
-  not_new_student: 'Referral codes are for new students only — booked at full price.',
+  not_new_student: 'That code is for new students only — booked at full price.',
+  wrong_subject: "That code isn't valid for this subject — booked at full price.",
 };
