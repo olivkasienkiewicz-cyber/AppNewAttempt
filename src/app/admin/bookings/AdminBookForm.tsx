@@ -7,6 +7,12 @@ export type BookFormTutor = { id: string; name: string; subjects: string[] };
 export type BookFormStudent = { id: string; name: string; email: string };
 
 const DURATIONS = [30, 45, 60, 90, 120];
+const MAX_WEEKS = 26;
+
+function ddmm(date: string): string {
+  const [, mm, dd] = date.split('-');
+  return `${dd}.${mm}`;
+}
 
 const ERROR_MESSAGES: Record<string, string> = {
   tutor_time_conflict: 'That tutor already has something at that time.',
@@ -15,6 +21,8 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_start_time: 'Pick a start time.',
   invalid_subject: 'Pick a subject.',
   forbidden: 'Only the admin can book sessions.',
+  all_occurrences_overlap: 'The tutor already has something at that time on every one of those dates.',
+  invalid_repeat_weeks: `Pick between 2 and ${MAX_WEEKS} weeks.`,
 };
 
 const fieldClass = 'w-full rounded border border-border bg-background px-2 py-1.5 text-sm';
@@ -23,6 +31,9 @@ const labelClass = 'block text-xs font-medium text-muted-foreground mb-1';
 // Books a session for a student with a tutor and sends exactly the same
 // confirmations as when the student books it themselves (student email with
 // bank details, tutor email, admin email, in-app notifications).
+// With "Repeat weekly" it books the same slot for N weeks instead; the family
+// then pays from their account (single or batch), like tutor-scheduled
+// recurring sessions, and everyone gets one summary email.
 export function AdminBookForm({ tutors, students }: { tutors: BookFormTutor[]; students: BookFormStudent[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -33,6 +44,8 @@ export function AdminBookForm({ tutors, students }: { tutors: BookFormTutor[]; s
   const [startTime, setStartTime] = useState('');
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [discountCode, setDiscountCode] = useState('');
+  const [repeat, setRepeat] = useState(false);
+  const [weeks, setWeeks] = useState(4);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
 
@@ -65,15 +78,34 @@ export function AdminBookForm({ tutors, students }: { tutors: BookFormTutor[]; s
           startTime,
           durationMinutes,
           subject,
-          discountCode: discountCode.trim() || null,
+          discountCode: repeat ? null : discountCode.trim() || null,
+          repeatWeeks: repeat ? weeks : 1,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; discountError?: string | null };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        discountError?: string | null;
+        created?: unknown[];
+        skippedDates?: string[];
+      };
       if (!res.ok) {
         setMessage({ tone: 'error', text: ERROR_MESSAGES[data.error ?? ''] ?? "Couldn't book the session — try again." });
         return;
       }
       const student = students.find((s) => s.id === studentId);
+      if (repeat) {
+        const skipped = data.skippedDates ?? [];
+        setMessage({
+          tone: 'ok',
+          text: `Booked ${data.created?.length ?? 0} weekly sessions. Emails sent to ${student?.name ?? 'the student'}, the tutor and you.${
+            skipped.length > 0 ? ` Skipped (tutor busy): ${skipped.map(ddmm).join(', ')}.` : ''
+          }`,
+        });
+        setDate('');
+        setStartTime('');
+        router.refresh();
+        return;
+      }
       setMessage({
         tone: 'ok',
         text: `Booked. Confirmation emails sent to ${student?.name ?? 'the student'}, the tutor and you.${
@@ -159,16 +191,44 @@ export function AdminBookForm({ tutors, students }: { tutors: BookFormTutor[]; s
               ))}
             </select>
           </div>
-          <div>
-            <label className={labelClass} htmlFor="book-discount">Discount code (optional)</label>
-            <input
-              id="book-discount"
-              type="text"
-              value={discountCode}
-              onChange={(e) => setDiscountCode(e.target.value)}
-              className={fieldClass}
-              autoCapitalize="characters"
-            />
+          {repeat ? (
+            <div>
+              <label className={labelClass} htmlFor="book-weeks">Number of weeks</label>
+              <input
+                id="book-weeks"
+                type="number"
+                inputMode="numeric"
+                min={2}
+                max={MAX_WEEKS}
+                value={weeks}
+                onChange={(e) => setWeeks(Number(e.target.value))}
+                className={fieldClass}
+                required
+              />
+            </div>
+          ) : (
+            <div>
+              <label className={labelClass} htmlFor="book-discount">Discount code (optional)</label>
+              <input
+                id="book-discount"
+                type="text"
+                value={discountCode}
+                onChange={(e) => setDiscountCode(e.target.value)}
+                className={fieldClass}
+                autoCapitalize="characters"
+              />
+            </div>
+          )}
+          <div className="sm:col-span-2">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={repeat} onChange={(e) => setRepeat(e.target.checked)} />
+              Repeat weekly
+            </label>
+            {repeat && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Same day and time every week. The family pays from their account (one session or several at once) and can enter a discount code then. Weeks where the tutor is busy are skipped.
+              </p>
+            )}
           </div>
           <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
             <button
@@ -176,7 +236,7 @@ export function AdminBookForm({ tutors, students }: { tutors: BookFormTutor[]; s
               disabled={busy}
               className="rounded bg-[#16B8A7] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
             >
-              {busy ? 'Booking…' : 'Book & send confirmations'}
+              {busy ? 'Booking…' : repeat ? `Book ${weeks} weekly sessions` : 'Book & send confirmations'}
             </button>
             {message && (
               <span className={`text-sm ${message.tone === 'ok' ? 'text-emerald-700' : 'text-red-600'}`}>{message.text}</span>
