@@ -3,6 +3,7 @@ import { rowToUser, rowToNotification } from '@/lib/db-mappers';
 import { referenceCodeForSlot, amountForSlot, BANK_DETAILS, ADMIN_EMAIL } from '@/lib/payment';
 import { sendEmail } from '@/lib/email';
 import { redeemDiscountCode } from '@/lib/discount';
+import { notifyLinkedParent } from '@/lib/parent-notify';
 import type { Slot } from '@/lib/store';
 
 // Everything that happens AFTER a slot has been marked as booked for a
@@ -112,6 +113,20 @@ export async function completeBooking(args: {
           }),
         })
       : Promise.resolve(),
+    // A linked parent gets the same confirmation (with bank details), since
+    // they're usually the one paying. No-op if the student has no parent.
+    notifyLinkedParent(
+      studentId,
+      `Booking confirmed for ${student?.name ?? 'your child'} — ${ddmm} at ${slot.startTime}`,
+      parentBookingEmailHtml({
+        studentName: student?.name ?? 'your child',
+        tutorName: tutor?.name ?? 'the tutor',
+        ddmm,
+        startTime: slot.startTime,
+        sessionSubject: slot.subject,
+        payment,
+      }),
+    ).catch((err) => console.error('Failed to email linked parent about booking:', err)),
     sendEmail({
       to: ADMIN_EMAIL,
       subject: `New booking — ${student?.name ?? 'a student'} × ${tutor?.name ?? 'a tutor'} — ${ddmm} at ${slot.startTime}`,
@@ -155,6 +170,41 @@ function studentEmailHtml(args: {
       <h2>Booking confirmed</h2>
       <p>Hi ${studentName},</p>
       <p>Your session with <strong>${tutorName}</strong> is booked for <strong>${ddmm}</strong> at <strong>${startTime}</strong>${sessionSubject ? ` — <strong>${sessionSubject}</strong>` : ''}.</p>
+      ${payment.discountApplied ? `<p style="color: #16B8A7;">Discount code <strong>${payment.discountCode}</strong> applied!</p>` : ''}
+      <h3>Payment by bank transfer</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <tr><td style="padding: 4px 0; color: #666;">Account holder</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.accountHolder}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">IBAN</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.iban}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Bank</td><td style="padding: 4px 0; text-align: right;">${payment.bankDetails.bankName}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Amount</td><td style="padding: 4px 0; text-align: right;">${payment.amount.toFixed(2)} ${payment.currency}</td></tr>
+        <tr><td style="padding: 4px 0; color: #666;">Reference</td><td style="padding: 4px 0; text-align: right; font-weight: bold;">${payment.referenceCode}</td></tr>
+      </table>
+      <p style="color: #666; font-size: 13px;">Please include the reference code exactly as shown so we can match your transfer to this booking.</p>
+    </div>
+  `;
+}
+
+export function parentBookingEmailHtml(args: {
+  studentName: string;
+  tutorName: string;
+  ddmm: string;
+  startTime: string;
+  sessionSubject: string | null;
+  payment: {
+    referenceCode: string;
+    amount: number;
+    currency: string;
+    bankDetails: { accountHolder: string; iban: string; bankName: string };
+    discountApplied: boolean;
+    discountCode: string | null;
+  };
+}): string {
+  const { studentName, tutorName, ddmm, startTime, sessionSubject, payment } = args;
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Booking confirmed</h2>
+      <p>Hello,</p>
+      <p><strong>${studentName}</strong>'s session with <strong>${tutorName}</strong> is booked for <strong>${ddmm}</strong> at <strong>${startTime}</strong>${sessionSubject ? ` — <strong>${sessionSubject}</strong>` : ''}.</p>
       ${payment.discountApplied ? `<p style="color: #16B8A7;">Discount code <strong>${payment.discountCode}</strong> applied!</p>` : ''}
       <h3>Payment by bank transfer</h3>
       <table style="width: 100%; border-collapse: collapse;">

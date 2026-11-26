@@ -6,6 +6,8 @@ import { referenceCodeForSlot, amountForSlot, BANK_DETAILS, ADMIN_EMAIL } from '
 import { sendEmail } from '@/lib/email';
 import { isSelfOrLinkedParent } from '@/lib/parent-access';
 import { redeemDiscountCode } from '@/lib/discount';
+import { notifyLinkedParent } from '@/lib/parent-notify';
+import { parentBookingEmailHtml } from '@/lib/booking-complete';
 
 export const dynamic = 'force-dynamic';
 
@@ -207,6 +209,19 @@ export async function POST(req: Request) {
           </div>`,
         })
       : Promise.resolve(),
+    // Same confirmation for a linked parent (no-op if there isn't one).
+    notifyLinkedParent(
+      studentId,
+      `Booking confirmed for ${student?.name ?? 'your child'} — ${ddmm} at ${slot.startTime}`,
+      parentBookingEmailHtml({
+        studentName: student?.name ?? 'your child',
+        tutorName: tutor?.name ?? 'the tutor',
+        ddmm,
+        startTime: slot.startTime,
+        sessionSubject: slot.subject,
+        payment: { ...payment, discountApplied: appliedCode !== null, discountCode: appliedCode },
+      }),
+    ).catch((err) => console.error('Failed to email linked parent about booking:', err)),
     sendEmail({
       to: ADMIN_EMAIL,
       subject: `New booking — ${student?.name ?? 'a student'} × ${tutor?.name ?? 'a tutor'} — ${ddmm} at ${slot.startTime}`,
